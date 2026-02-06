@@ -550,13 +550,20 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
                                                 {clip.visual_description}
                                              </p>
                                         )}
-                                        <button 
-                                          onClick={() => analyzeClip(clip.id)}
-                                          disabled={analyzingIds.has(clip.id)}
-                                          className="w-full py-1.5 bg-[#222] hover:bg-[#333] text-[9px] font-bold rounded uppercase tracking-widest text-gray-400 transition"
-                                        >
-                                            {analyzingIds.has(clip.id) ? 'ANALYZING...' : 'AI INSPECT'}
-                                        </button>
+                                        <div className="flex gap-1">
+                                          <button
+                                            onClick={() => analyzeClip(clip.id)}
+                                            disabled={analyzingIds.has(clip.id)}
+                                            className="flex-1 py-1.5 bg-[#222] hover:bg-[#333] text-[9px] font-bold rounded uppercase tracking-widest text-gray-400 transition"
+                                          >
+                                              {analyzingIds.has(clip.id) ? 'ANALYZING...' : 'AI INSPECT'}
+                                          </button>
+                                          <button
+                                            onClick={() => { setClips(prev => prev.filter(c => c.id !== clip.id)); apiService.deleteAsset(clip.id).catch(console.error); }}
+                                            className="py-1.5 px-2 bg-[#222] hover:bg-red-600 text-[9px] font-bold rounded text-gray-500 hover:text-white transition"
+                                            title="Delete clip"
+                                          >🗑</button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}

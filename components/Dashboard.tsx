@@ -7,6 +7,7 @@ interface DashboardProps {
   projects: DocumentaryProject[];
   onSelectProject: (id: string) => void;
   onCreateProject: (title: string, desc: string, templateId?: string) => void;
+  onDeleteProject: (id: string) => void;
 }
 
 const templates: ProjectTemplate[] = [
@@ -15,11 +16,12 @@ const templates: ProjectTemplate[] = [
   { id: 'short-int', name: 'Short Form Interview', description: 'Portrait mode, punchy captions, and single talent.', format: 'short_form' },
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ user, projects, onSelectProject, onCreateProject }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, projects, onSelectProject, onCreateProject, onDeleteProject }) => {
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -60,7 +62,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, projects, onSelectProject, 
 
                 <div className="flex justify-between items-start mb-4">
                 <span className="text-[10px] font-mono bg-white/5 text-gray-400 px-2 py-1 rounded uppercase tracking-wider">{proj.target_format}</span>
-                <span className={`w-3 h-3 rounded-full ${proj.status === 'active' ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`} />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(proj.id); }}
+                    className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-500 transition text-xs p-1"
+                    title="Delete project"
+                  >
+                    🗑
+                  </button>
+                  <span className={`w-3 h-3 rounded-full ${proj.status === 'active' ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`} />
+                </div>
                 </div>
                 
                 <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-500 transition-colors pr-10">{proj.title}</h3>
@@ -162,6 +173,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, projects, onSelectProject, 
                 className="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded font-bold transition shadow-lg shadow-red-900/20"
               >
                 INITIALIZE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-[#1a1a1a] border border-red-600/30 w-full max-w-sm p-8 rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-2">Delete Project?</h3>
+            <p className="text-sm text-gray-400 mb-6">This will permanently delete the project and all its data (series, episodes, research, scripts, assets). This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 bg-[#222] hover:bg-[#333] py-3 rounded font-bold text-sm transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { onDeleteProject(confirmDeleteId); setConfirmDeleteId(null); }}
+                className="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded font-bold text-sm transition"
+              >
+                Delete
               </button>
             </div>
           </div>

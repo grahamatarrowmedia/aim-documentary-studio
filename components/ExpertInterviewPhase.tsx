@@ -268,6 +268,11 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
               </div>
               <div className="flex items-center gap-4">
                  <span className="text-xs font-mono text-gray-500 uppercase">Focus: {plan.topic}</span>
+                 <button
+                   onClick={() => { setPlans(prev => prev.filter(p => p.id !== plan.id)); apiService.deleteInterview(plan.id).catch(console.error); }}
+                   className="text-gray-600 hover:text-red-500 transition text-xs"
+                   title="Delete interview plan"
+                 >🗑</button>
                  {plan.status === 'booked' && (
                      <button 
                         onClick={() => setActiveProductionId(activeProductionId === plan.id ? null : plan.id)}

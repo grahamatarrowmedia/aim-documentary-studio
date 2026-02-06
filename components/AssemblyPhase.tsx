@@ -166,7 +166,12 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
                         width: `${item.duration * pixelsPerSecond}px` 
                       }}
                     >
-                      <span className="text-[10px] font-bold text-white truncate drop-shadow-md">{item.label}</span>
+                      <span className="text-[10px] font-bold text-white truncate drop-shadow-md flex-1">{item.label}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setItems(prev => prev.filter(i => i.id !== item.id)); apiService.deleteShot(item.id).catch(console.error); }}
+                        className="opacity-0 group-hover:opacity-100 text-white/50 hover:text-red-400 text-[10px] ml-1 transition flex-shrink-0"
+                        title="Remove from timeline"
+                      >✕</button>
                       <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/20 opacity-0 group-hover:opacity-100 cursor-ew-resize" />
                     </div>
                   ))}

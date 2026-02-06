@@ -146,6 +146,7 @@ export const apiService = {
     async getProjects() { return fetchGET('/api/projects'); },
     async createProject(data: Record<string, any>) { return fetchAPI('/api/projects', data); },
     async updateProject(id: string, data: Record<string, any>) { return fetchPUT(`/api/projects/${id}`, data); },
+    async deleteProject(id: string) { return fetchDELETE(`/api/projects/${id}`); },
 
     // Series
     async getSeriesByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/series`); },

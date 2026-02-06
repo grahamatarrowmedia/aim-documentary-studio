@@ -311,8 +311,11 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
                             {references.map(ref => (
                                 <div key={ref.id} className="bg-[#1a1a1a] p-3 rounded border border-[#333]">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs font-bold text-white truncate max-w-[200px]">{ref.name}</span>
-                                        <span className="text-[9px] text-gray-500 font-mono">{ref.size}</span>
+                                        <span className="text-xs font-bold text-white truncate max-w-[180px]">{ref.name}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[9px] text-gray-500 font-mono">{ref.size}</span>
+                                          <button onClick={() => setReferences(prev => prev.filter(r => r.id !== ref.id))} className="text-gray-600 hover:text-red-500 transition text-[10px]" title="Remove">✕</button>
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {ref.analysis_status === 'analyzing' && (

@@ -485,13 +485,19 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
             <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Series</h4>
             <div className="space-y-1">
               {seriesList.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => { setActiveSeriesId(s.id); setActiveEpisodeId(''); }}
-                  className={`w-full text-left p-2 rounded text-xs font-bold flex items-center gap-2 transition ${activeSeriesId === s.id ? 'bg-white text-black' : 'text-gray-400 hover:bg-[#1a1a1a] hover:text-white'}`}
-                >
-                  <span>{s.icon}</span> {s.title}
-                </button>
+                <div key={s.id} className="group/ser flex items-center">
+                  <button
+                    onClick={() => { setActiveSeriesId(s.id); setActiveEpisodeId(''); }}
+                    className={`flex-1 text-left p-2 rounded text-xs font-bold flex items-center gap-2 transition ${activeSeriesId === s.id ? 'bg-white text-black' : 'text-gray-400 hover:bg-[#1a1a1a] hover:text-white'}`}
+                  >
+                    <span>{s.icon}</span> {s.title}
+                  </button>
+                  <button
+                    onClick={() => { apiService.deleteSeries(s.id).catch(console.error); setSeriesList(prev => prev.filter(x => x.id !== s.id)); setEpisodesList(prev => prev.filter(e => e.series_id !== s.id)); if (activeSeriesId === s.id) { setActiveSeriesId(''); setActiveEpisodeId(''); } }}
+                    className="opacity-0 group-hover/ser:opacity-100 text-gray-600 hover:text-red-500 transition text-[10px] px-1"
+                    title="Delete series"
+                  >✕</button>
+                </div>
               ))}
               {!isAddingSeries ? (
                 <button onClick={() => setIsAddingSeries(true)} className="w-full text-left p-2 text-[10px] text-gray-600 hover:text-gray-400">+ Add Series</button>
@@ -517,14 +523,20 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
             <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Episodes</h4>
             <div className="space-y-1">
               {filteredEpisodes.map(ep => (
-                <button
-                  key={ep.id}
-                  onClick={() => setActiveEpisodeId(ep.id)}
-                  className={`w-full text-left p-2 rounded text-xs font-medium transition ${activeEpisodeId === ep.id ? 'bg-[#1a1a1a] text-white border-l-2 border-red-600' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  <span className="font-mono opacity-50 mr-1">EP{ep.episode_number.toString().padStart(2, '0')}</span>
-                  <span className="truncate">{ep.title}</span>
-                </button>
+                <div key={ep.id} className="group/ep flex items-center">
+                  <button
+                    onClick={() => setActiveEpisodeId(ep.id)}
+                    className={`flex-1 text-left p-2 rounded text-xs font-medium transition ${activeEpisodeId === ep.id ? 'bg-[#1a1a1a] text-white border-l-2 border-red-600' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    <span className="font-mono opacity-50 mr-1">EP{ep.episode_number.toString().padStart(2, '0')}</span>
+                    <span className="truncate">{ep.title}</span>
+                  </button>
+                  <button
+                    onClick={() => { apiService.deleteEpisode(ep.id).catch(console.error); setEpisodesList(prev => prev.filter(x => x.id !== ep.id)); if (activeEpisodeId === ep.id) setActiveEpisodeId(''); }}
+                    className="opacity-0 group-hover/ep:opacity-100 text-gray-600 hover:text-red-500 transition text-[10px] px-1"
+                    title="Delete episode"
+                  >✕</button>
+                </div>
               ))}
               {!isAddingEpisode ? (
                 <button onClick={() => setIsAddingEpisode(true)} disabled={!activeSeriesId} className="w-full text-left p-2 text-[10px] text-gray-600 hover:text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed">{activeSeriesId ? '+ Add Episode' : 'Select a series first'}</button>
@@ -694,19 +706,24 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
               episodeQueries.map(q => {
                 const badge = getEngineBadge(q.engine);
                 return (
-                  <div key={q.id} className="bg-[#0a0a0a] border border-[#222] rounded-xl p-4">
+                  <div key={q.id} className="bg-[#0a0a0a] border border-[#222] rounded-xl p-4 group/query">
                     {/* Query */}
                     <div className="flex items-start gap-3 mb-4">
                       <div className="w-8 h-8 bg-[#1a1a1a] rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-sm">❓</span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-white font-medium">{q.query}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${badge.color}`}>{badge.label}</span>
                           <span className="text-[9px] text-gray-500">{q.timestamp}</span>
                         </div>
                       </div>
+                      <button
+                        onClick={() => { setResearchQueries(prev => prev.filter(rq => rq.id !== q.id)); apiService.deleteResearch(q.id).catch(console.error); }}
+                        className="opacity-0 group-hover/query:opacity-100 text-gray-600 hover:text-red-500 transition text-xs flex-shrink-0"
+                        title="Delete research"
+                      >✕</button>
                     </div>
 
                     {/* Response */}

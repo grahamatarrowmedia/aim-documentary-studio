@@ -360,6 +360,11 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
                       {vo.audio_url && (
                           <audio controls src={vo.audio_url} className="w-32 h-6 mt-2" />
                       )}
+                      <button
+                        onClick={() => { setVoiceOvers(prev => prev.filter(v => v.id !== vo.id)); apiService.deleteShot(vo.id).catch(console.error); }}
+                        className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-500 transition text-xs mt-1"
+                        title="Delete voice-over"
+                      >🗑</button>
                    </div>
                 </td>
               </tr>

@@ -101,6 +101,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      await apiService.deleteProject(projectId);
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      if (activeProjectId === projectId) setActiveProjectId(null);
+      addNotification('Project Deleted', 'Project and all related data removed.', 'info');
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      addNotification('Error', 'Failed to delete project', 'error');
+    }
+  };
+
   const handleSelectProject = async (projectId: string) => {
       const proj = projects.find(p => p.id === projectId);
       if (!proj) return;
@@ -147,7 +159,7 @@ const App: React.FC = () => {
     if (currentGlobalPhase === 'cloud_management') return <CloudServices />;
     if (currentGlobalPhase === 'settings') return <ProfileSettings user={user} onUpdate={(u) => setUser(u)} />;
     
-    if (!activeProject) return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} />;
+    if (!activeProject) return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} onDeleteProject={handleDeleteProject} />;
 
     const commonProps = { project: activeProject, onNotify: addNotification };
     // We could pass isSpectatorMode down to disable inputs in phases, 
@@ -162,7 +174,7 @@ const App: React.FC = () => {
       case 'voice_over': return <VoiceOverPhase project={activeProject} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'assembly', 85)} onGoToSettings={() => setCurrentGlobalPhase('settings')} />;
       case 'assembly': return <AssemblyPhase project={activeProject} onAdvance={() => updateProjectPhase(activeProject.id, 'review', 95)} />;
       case 'review': return <ReviewPhase project={activeProject} user={user} onComplete={() => { addNotification('Project Locked', `"${activeProject.title}" has been signed off and locked.`, 'success'); setActiveProjectId(null); loadProjects(); }} />;
-      default: return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} />;
+      default: return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} onDeleteProject={handleDeleteProject} />;
     }
   };
 
