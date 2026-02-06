@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
+import { apiService } from '../services/apiService';
 
 // Extend Window interface for AI Studio API
 declare global {
@@ -18,15 +19,27 @@ interface ProfileSettingsProps {
 
 const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate }) => {
   const [formData, setFormData] = useState(user);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setSaveStatus('idle');
   };
 
-  const handleSave = () => {
-    onUpdate(formData);
-    alert('Studio profile updated.');
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveStatus('idle');
+    try {
+      await apiService.updateUser(user.id, formData);
+      onUpdate(formData);
+      setSaveStatus('saved');
+    } catch {
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleOpenProKey = async () => {
@@ -127,12 +140,19 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate }) => 
               placeholder="e.g. Always write in the style of David Attenborough. Focus on scientific accuracy. Use short, punchy sentences."
               className="flex-1 w-full bg-[#0a0a0a] border border-[#333] rounded p-4 focus:outline-none focus:border-red-600 text-sm font-mono leading-relaxed"
             />
-            <button 
+            <button
               onClick={handleSave}
-              className="mt-8 bg-white text-black font-bold py-3 rounded text-sm hover:bg-gray-200 transition"
+              disabled={saving}
+              className="mt-8 bg-white text-black font-bold py-3 rounded text-sm hover:bg-gray-200 transition disabled:opacity-50"
             >
-              COMMIT CHANGES
+              {saving ? 'SAVING...' : 'COMMIT CHANGES'}
             </button>
+            {saveStatus === 'saved' && (
+              <p className="text-green-500 text-xs mt-2 text-center">Profile saved successfully.</p>
+            )}
+            {saveStatus === 'error' && (
+              <p className="text-red-500 text-xs mt-2 text-center">Failed to save. Please try again.</p>
+            )}
           </section>
         </div>
       </div>

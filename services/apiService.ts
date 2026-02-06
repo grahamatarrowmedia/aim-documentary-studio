@@ -97,6 +97,27 @@ export const apiService = {
     // Multi-source research query (NotebookLM-style)
     async querySources(data: { query: string; sources: any[]; engine?: string }) {
         return fetchAPI('/api/query-sources', data);
+    },
+
+    // User profiles
+    async getUsers() {
+        const response = await fetch(`${API_BASE}/api/users`);
+        if (!response.ok) throw new Error('Failed to fetch users');
+        return response.json();
+    },
+
+    async seedUsers() {
+        return fetchAPI('/api/users/seed', {});
+    },
+
+    async updateUser(userId: string, data: Record<string, any>) {
+        const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to update user');
+        return response.json();
     }
 };
 
