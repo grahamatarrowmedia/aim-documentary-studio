@@ -159,7 +159,7 @@ const App: React.FC = () => {
       case 'archive': return <ArchivePhase {...commonProps} onAdvance={() => updateProjectPhase(activeProject.id, 'scripting', 45)} />;
       case 'scripting': return <ScriptingPhase project={activeProject} onAdvance={() => updateProjectPhase(activeProject.id, 'expert_interview', 60)} />;
       case 'expert_interview': return <ExpertInterviewPhase {...commonProps} onAdvance={() => updateProjectPhase(activeProject.id, 'voice_over', 70)} />;
-      case 'voice_over': return <VoiceOverPhase project={activeProject} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'assembly', 85)} />;
+      case 'voice_over': return <VoiceOverPhase project={activeProject} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'assembly', 85)} onGoToSettings={() => setCurrentGlobalPhase('settings')} />;
       case 'assembly': return <AssemblyPhase project={activeProject} onAdvance={() => updateProjectPhase(activeProject.id, 'review', 95)} />;
       case 'review': return <ReviewPhase project={activeProject} user={user} onComplete={() => { addNotification('Project Locked', `"${activeProject.title}" has been signed off and locked.`, 'success'); setActiveProjectId(null); loadProjects(); }} />;
       default: return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} />;

@@ -8,6 +8,7 @@ interface VoiceOverPhaseProps {
   project: DocumentaryProject;
   user: UserProfile;
   onAdvance: () => void;
+  onGoToSettings?: () => void;
 }
 
 const defaultSettings: ElevenLabsSettings = {
@@ -28,7 +29,7 @@ const INTONATION_TAGS = [
     { label: 'Laugh', tag: '[laugh]' }
 ];
 
-const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvance }) => {
+const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvance, onGoToSettings }) => {
   const [availableVoices, setAvailableVoices] = useState<VoiceTalent[]>([]);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   
@@ -206,11 +207,19 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
                   <span className="text-2xl">⚠️</span>
                   <div>
                       <h4 className="text-sm font-bold text-yellow-500">No API Key Detected</h4>
-                      <p className="text-xs text-yellow-200/70">Connect your ElevenLabs account in Settings to access your custom voice library.</p>
+                      <p className="text-xs text-yellow-200/70">Add your ElevenLabs API key in Settings to access your custom voice library.</p>
                   </div>
               </div>
-              <div className="text-[10px] uppercase font-bold text-yellow-500">
-                  Using Fallback Voices
+              <div className="flex items-center gap-3">
+                  <span className="text-[10px] uppercase font-bold text-yellow-500">Using Fallback Voices</span>
+                  {onGoToSettings && (
+                    <button
+                      onClick={onGoToSettings}
+                      className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded text-[10px] uppercase tracking-widest transition"
+                    >
+                      Go to Settings
+                    </button>
+                  )}
               </div>
           </div>
       )}
