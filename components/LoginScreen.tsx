@@ -42,9 +42,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center font-sans animate-in fade-in duration-700">
       <div className="text-center mb-16">
-        <h1 className="text-6xl font-black tracking-tighter text-white mb-4">
-          <span className="text-red-600">AiM</span> STUDIO
-        </h1>
+        <img src="/aim-logo.jpeg" alt="AiM - AI Production Studio" className="h-32 mx-auto rounded-lg mb-4" />
         <p className="text-gray-500 uppercase tracking-widest text-sm">Intelligent Media Production Environment v2.0</p>
       </div>
 

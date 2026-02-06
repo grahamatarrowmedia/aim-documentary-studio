@@ -33,11 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-64 bg-[#111] border-r border-[#222] flex flex-col">
-      <div className="p-6 border-b border-[#222]">
-        <h1 className="text-3xl font-black tracking-tighter text-white flex items-center gap-2">
-          <span className="text-red-600">AiM</span>
-        </h1>
-        <p className="text-[10px] text-gray-500 font-mono mt-1">INTELLIGENT MEDIA v2.0</p>
+      <div className="p-4 border-b border-[#222]">
+        <img src="/aim-logo.jpeg" alt="AiM - AI Production Studio" className="w-full rounded" />
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
