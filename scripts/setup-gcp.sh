@@ -11,7 +11,7 @@
 # =============================================================================
 set -euo pipefail
 
-PROJECT_ID="fremantle-ai-studio-prod"
+PROJECT_ID="gbr-aim-aiengine-prod"
 REGION="europe-west1"
 REPO_NAME="aim"
 SERVICE_NAME="aim-documentary-studio"
@@ -80,17 +80,19 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
 
 # ---------- 5. Create Cloud Build GitHub trigger ----------
 echo "==> Creating Cloud Build GitHub trigger..."
-if gcloud builds triggers describe "${SERVICE_NAME}-main" \
-    --region="${REGION}" --format="value(name)" 2>/dev/null; then
+if gcloud builds triggers describe "${SERVICE_NAME}" \
+    --region=global --format="value(name)" 2>/dev/null; then
   echo "    Trigger already exists, skipping."
 else
+  PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
   gcloud builds triggers create github \
-    --name="${SERVICE_NAME}-main" \
+    --name="${SERVICE_NAME}" \
     --repo-name="${GITHUB_REPO}" \
     --repo-owner="${GITHUB_OWNER}" \
     --branch-pattern="^main$" \
     --build-config=cloudbuild.yaml \
-    --region="${REGION}"
+    --service-account="projects/${PROJECT_ID}/serviceAccounts/${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+    --region=global
 fi
 
 # ---------- 6. Remind about secrets ----------

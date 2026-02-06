@@ -22,7 +22,7 @@ app.use(express.json());
 
 // ========== Vertex AI Configuration ==========
 // Support both GCP_PROJECT_ID (local) and GCP_PROJECT (Cloud Run)
-const PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GCP_PROJECT || 'fremantle-ai-studio-prod';
+const PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GCP_PROJECT || 'gbr-aim-aiengine-prod';
 const LOCATION = process.env.GCP_LOCATION || 'us-central1';
 
 // Initialize Vertex AI
