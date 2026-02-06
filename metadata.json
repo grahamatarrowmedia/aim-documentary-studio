@@ -1,0 +1,8 @@
+{
+  "name": "Fremantle AI Studio v2.0",
+  "description": "High-end documentary workflow with VEO video generation, real-time Google Search grounding, and context-aware producer chat for Fremantle.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
