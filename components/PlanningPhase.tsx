@@ -54,18 +54,30 @@ const PlanningPhase: React.FC<PlanningPhaseProps> = ({ project, user, onAdvance,
     setBrainstormResult('');
 
     try {
-      const result = await geminiService.summarizeResearch(
-        `As a documentary development executive, brainstorm a comprehensive production plan for this concept: "${premise}".
-Include: potential series structure (3-6 episodes), key themes, target audience, visual approach, archive sources to pursue, and expert types to interview. Format as a structured brief.`,
-        'gemini_pro'
+      const chat = geminiService.createAssistantChat(
+        'You are a senior documentary development executive. Respond in clear, well-structured natural language with headers and bullet points. Never return raw JSON.'
       );
-      setBrainstormResult(result.summary || JSON.stringify(result));
+      const result = await chat.sendMessage({
+        message: `Brainstorm a comprehensive production plan for this documentary concept: "${premise}".
+
+Include:
+- Potential series structure (3-6 episodes with titles and loglines)
+- Key themes and narrative angles
+- Target audience
+- Visual approach and tone
+- Archive sources to pursue
+- Expert types to interview
+- Risks and challenges
+
+Format as a structured brief with clear sections.`
+      });
+      setBrainstormResult(result.text);
 
       // Persist brainstorm as a research document
       await apiService.createResearch({
         projectId: project.id,
         query: `Planning brainstorm: ${premise}`,
-        answer: result.summary || '',
+        answer: result.text,
         engine: 'gemini_pro',
         phase: 'planning'
       });
@@ -116,6 +128,28 @@ Include: potential series structure (3-6 episodes), key themes, target audience,
       setAddingEpisodeTo(null);
     } catch (err) {
       console.error('Failed to create episode:', err);
+    }
+  };
+
+  const handleDeleteSeries = async (seriesId: string) => {
+    try {
+      // Delete all episodes in this series first
+      const seriesEps = episodes.filter(e => e.series_id === seriesId);
+      await Promise.all(seriesEps.map(ep => apiService.deleteEpisode(ep.id)));
+      await apiService.deleteSeries(seriesId);
+      setSeries(prev => prev.filter(s => s.id !== seriesId));
+      setEpisodes(prev => prev.filter(e => e.series_id !== seriesId));
+    } catch (err) {
+      console.error('Failed to delete series:', err);
+    }
+  };
+
+  const handleDeleteEpisode = async (episodeId: string) => {
+    try {
+      await apiService.deleteEpisode(episodeId);
+      setEpisodes(prev => prev.filter(e => e.id !== episodeId));
+    } catch (err) {
+      console.error('Failed to delete episode:', err);
     }
   };
 
@@ -193,9 +227,17 @@ Include: potential series structure (3-6 episodes), key themes, target audience,
             {references.length > 0 && (
               <div className="mt-4 space-y-2">
                 {references.map(ref => (
-                  <div key={ref.id} className="bg-[#1a1a1a] p-3 rounded border border-[#333] flex justify-between items-center">
+                  <div key={ref.id} className="bg-[#1a1a1a] p-3 rounded border border-[#333] flex justify-between items-center group/ref">
                     <span className="text-xs font-bold text-white truncate max-w-[200px]">{ref.name}</span>
-                    <span className="text-[9px] text-gray-500 font-mono">{ref.size}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] text-gray-500 font-mono">{ref.size}</span>
+                      <button
+                        onClick={() => setReferences(prev => prev.filter(r => r.id !== ref.id))}
+                        className="text-[9px] text-red-500/0 group-hover/ref:text-red-500/70 hover:!text-red-500 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -264,23 +306,39 @@ Include: potential series structure (3-6 episodes), key themes, target audience,
                   .sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0));
                 return (
                   <div key={s.id} className="bg-[#0a0a0a] border border-[#333] rounded-xl overflow-hidden">
-                    <div className="p-4 border-b border-[#222] flex justify-between items-center">
+                    <div className="p-4 border-b border-[#222] flex justify-between items-center group/header">
                       <div>
                         <h4 className="text-sm font-bold text-white">{s.title}</h4>
                         {s.logline && <p className="text-[10px] text-gray-500 mt-0.5">{s.logline}</p>}
                       </div>
-                      <span className="text-[9px] font-mono text-gray-600">{seriesEps.length} episodes</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[9px] font-mono text-gray-600">{seriesEps.length} episodes</span>
+                        <button
+                          onClick={() => handleDeleteSeries(s.id)}
+                          className="text-[9px] text-red-500/0 group-hover/header:text-red-500/70 hover:!text-red-500 transition"
+                          title="Delete series"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
 
                     <div className="divide-y divide-[#222]">
                       {seriesEps.map(ep => (
-                        <div key={ep.id} className="p-3 px-4 flex items-center gap-3 hover:bg-white/5 transition">
+                        <div key={ep.id} className="p-3 px-4 flex items-center gap-3 hover:bg-white/5 transition group/ep">
                           <span className="text-[10px] font-mono text-gray-600 w-6">{String(ep.episode_number).padStart(2, '0')}</span>
                           <div className="flex-1">
                             <p className="text-xs font-medium text-gray-300">{ep.title}</p>
                             {ep.focus && <p className="text-[9px] text-gray-600 mt-0.5">{ep.focus}</p>}
                           </div>
                           <span className="text-[8px] font-bold uppercase tracking-widest text-yellow-500/60">{ep.status}</span>
+                          <button
+                            onClick={() => handleDeleteEpisode(ep.id)}
+                            className="text-[9px] text-red-500/0 group-hover/ep:text-red-500/70 hover:!text-red-500 transition"
+                            title="Delete episode"
+                          >
+                            ✕
+                          </button>
                         </div>
                       ))}
                     </div>
