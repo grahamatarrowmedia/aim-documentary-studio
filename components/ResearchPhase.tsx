@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { DocumentaryProject, DocumentaryNotebook, UserProfile, ResearchSeries, ResearchEpisode, KnowledgeAsset, ArchiveClip, ManualSource } from '../types';
 import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 
 interface ResearchPhaseProps {
   project: DocumentaryProject;
@@ -201,18 +202,12 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
 
     // Real Vertex AI indexing
     try {
-      const response = await fetch('/api/index-source', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: newSource.type,
-          url: newSource.url,
-          content: newSource.content,
-          title: newSource.title
-        })
+      const analysis = await apiService.indexSource({
+        type: newSource.type,
+        url: newSource.url,
+        content: newSource.content,
+        title: newSource.title
       });
-
-      const analysis = await response.json();
 
       if (analysis.status === 'indexed') {
         setSources(prev => prev.map(s =>
@@ -265,17 +260,11 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
       try {
         const fileContent = await readFileContent(file);
 
-        const response = await fetch('/api/analyze-document', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: fileContent,
-            fileName: file.name,
-            fileType: file.type || getFileTypeFromName(file.name)
-          })
+        const analysis = await apiService.analyzeDocument({
+          content: fileContent,
+          fileName: file.name,
+          fileType: file.type || getFileTypeFromName(file.name)
         });
-
-        const analysis = await response.json();
 
         if (analysis.status === 'indexed') {
           setSources(prev => prev.map(s =>
@@ -369,17 +358,11 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
       }));
 
       // Call the multi-source query API
-      const response = await fetch('/api/query-sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: researchPrompt,
-          sources: sourcesForQuery,
-          engine: selectedEngine
-        })
+      const result = await apiService.querySources({
+        query: researchPrompt,
+        sources: sourcesForQuery,
+        engine: selectedEngine
       });
-
-      const result = await response.json();
 
       if (result.error) {
         throw new Error(result.error);

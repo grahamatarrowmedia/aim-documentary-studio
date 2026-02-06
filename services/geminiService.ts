@@ -7,7 +7,7 @@ import { AvatarEnvironment } from '../types';
  * This avoids exposing API keys to the client.
  */
 
-const API_BASE = '/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api`;
 
 async function apiCall<T>(endpoint: string, body: any): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {

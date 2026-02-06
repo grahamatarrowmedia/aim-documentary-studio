@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PROJECT_ID="gbr-aim-aiengine-prod"
-REGION="europe-west1"
+REGION="us-central1"
 REPO_NAME="aim"
 SERVICE_NAME="aim-documentary-studio"
 GITHUB_OWNER="grahamatarrowmedia"

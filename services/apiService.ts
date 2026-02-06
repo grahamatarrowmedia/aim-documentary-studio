@@ -3,8 +3,8 @@
  * In production, uses Vertex AI via service account auth (no API key exposure).
  */
 
-// In production, use relative URLs (same origin). In dev, proxy to localhost:3001
-const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+// In dev, Vite proxy routes /api → Flask. In prod, VITE_API_URL is baked in at build time.
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function fetchAPI(endpoint: string, body: any) {
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -82,6 +82,21 @@ export const apiService = {
     async chat(message: string, systemInstruction: string, history: any[] = []) {
         const result = await fetchAPI('/api/chat', { message, systemInstruction, history });
         return result.response;
+    },
+
+    // Index a source (URL, text, or YouTube) via Vertex AI analysis
+    async indexSource(data: { type: string; url?: string; content?: string; title?: string }) {
+        return fetchAPI('/api/index-source', data);
+    },
+
+    // Analyze an uploaded document
+    async analyzeDocument(data: { content: string; fileName: string; fileType: string }) {
+        return fetchAPI('/api/analyze-document', data);
+    },
+
+    // Multi-source research query (NotebookLM-style)
+    async querySources(data: { query: string; sources: any[]; engine?: string }) {
+        return fetchAPI('/api/query-sources', data);
     }
 };
 
