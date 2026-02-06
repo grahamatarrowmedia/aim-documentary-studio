@@ -123,24 +123,45 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
     if (!activeFolder || !activeFolder.api_source || !searchQuery) return;
     setIsSearching(true);
     try {
-        const results = await geminiService.searchArchive(searchQuery, activeFolder.name);
-        const mappedResults: ArchiveClip[] = results.map((r: any, i: number) => ({
-            id: `ext-${Date.now()}-${i}`,
-            project_id: project.id,
-            title: r.title,
-            description: r.visual_description,
-            archive_source: r.archive_source || activeFolder.name,
-            duration_seconds: r.duration_seconds,
-            in_point: 0,
-            category: 'Historical',
-            thumbnail_url: activeFolder.api_source === 'nasa' 
-                ? 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=400&h=225' 
-                : 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=400&h=225',
-            visual_description: r.visual_description,
-            quality_score: 90
-        }));
-        setExternalResults(mappedResults);
+        if (activeFolder.api_source === 'nasa') {
+            // Use real NASA Images API
+            const apiBase = import.meta.env.VITE_API_URL || '';
+            const resp = await fetch(`${apiBase}/api/nasa/search?q=${encodeURIComponent(searchQuery)}&media_type=image&page_size=20`);
+            const data = await resp.json();
+            const mappedResults: ArchiveClip[] = (data.items || []).map((item: any, i: number) => ({
+                id: `nasa-${Date.now()}-${i}`,
+                project_id: project.id,
+                title: item.title,
+                description: item.description,
+                archive_source: `NASA ${item.center || ''}`.trim(),
+                duration_seconds: 0,
+                in_point: 0,
+                category: 'Historical' as const,
+                thumbnail_url: item.thumbnail_url,
+                visual_description: item.description,
+                quality_score: 95,
+            }));
+            setExternalResults(mappedResults);
+        } else {
+            // Other sources — use AI search with real thumbnail lookup
+            const results = await geminiService.searchArchive(searchQuery, activeFolder.name);
+            const mappedResults: ArchiveClip[] = results.map((r: any, i: number) => ({
+                id: `ext-${Date.now()}-${i}`,
+                project_id: project.id,
+                title: r.title,
+                description: r.visual_description,
+                archive_source: r.archive_source || activeFolder.name,
+                duration_seconds: r.duration_seconds,
+                in_point: 0,
+                category: 'Historical' as const,
+                thumbnail_url: r.thumbnail_url || undefined,
+                visual_description: r.visual_description,
+                quality_score: 90,
+            }));
+            setExternalResults(mappedResults);
+        }
     } catch (e: any) {
+        console.error('Search failed:', e);
         onNotify('Search Failed', 'Could not connect to archive API.', 'error');
     } finally {
         setIsSearching(false);
@@ -195,7 +216,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           duration_seconds: 120,
           in_point: 0,
           category: 'B-Roll' as const,
-          thumbnail_url: `https://picsum.photos/seed/${Date.now() + i}/400/225`
+          thumbnail_url: undefined
         }));
 
         if (newClips.length > 0) {
@@ -247,6 +268,30 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           ? (metadata.category as ValidCategory)
           : 'B-Roll';
 
+        // Upload file to GCS for real thumbnail
+        let gcsPath = '';
+        let thumbnailUrl: string | undefined;
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('projectId', project.id);
+          formData.append('title', metadata.title || file.name);
+          formData.append('type', 'archive_clip');
+          const uploadResp = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/assets/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          if (uploadResp.ok) {
+            const uploadResult = await uploadResp.json();
+            gcsPath = uploadResult.gcsPath || '';
+            if (gcsPath && file.type.startsWith('image/')) {
+              thumbnailUrl = `${import.meta.env.VITE_API_URL || ''}/api/gcs/serve?path=${encodeURIComponent(gcsPath)}`;
+            }
+          }
+        } catch (uploadErr) {
+          console.error('File upload failed:', uploadErr);
+        }
+
         const clipData = {
           project_id: project.id,
           folder_id: activeFolderId,
@@ -254,7 +299,8 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           duration_seconds: metadata.duration_seconds || 60,
           in_point: 0,
           category,
-          thumbnail_url: 'https://picsum.photos/seed/upload/400/225'
+          thumbnail_url: thumbnailUrl,
+          gcsPath
         };
 
         const saved = await apiService.createAsset({ ...clipData, projectId: project.id, assetType: 'archive_clip' });
@@ -271,7 +317,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           duration_seconds: 60,
           in_point: 0,
           category: 'B-Roll' as const,
-          thumbnail_url: 'https://picsum.photos/seed/upload/400/225'
+          thumbnail_url: undefined as string | undefined
         };
         const savedFallback = await apiService.createAsset({ ...fallbackData, projectId: project.id, assetType: 'archive_clip' }).catch(() => ({ id: `upl-${Date.now()}` }));
         setClips(prev => [{ ...fallbackData, id: savedFallback.id } as ArchiveClip, ...prev]);
@@ -402,16 +448,26 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                     {externalResults.length > 0 ? (
+                        <div>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">{externalResults.length} results from {activeFolder?.name}</p>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                             {externalResults.map(clip => (
                                 <div key={clip.id} className="bg-[#0a0a0a] border border-[#333] rounded-xl overflow-hidden group">
-                                    <div className="aspect-video relative">
-                                        <img src={clip.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt=""/>
-                                        <div className="absolute bottom-2 right-2 bg-black/70 px-1.5 rounded text-[10px] font-mono">{formatDuration(clip.duration_seconds)}</div>
+                                    <div className="aspect-video relative bg-[#1a1a1a]">
+                                        {clip.thumbnail_url ? (
+                                          <img src={clip.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt={clip.title} />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center">
+                                            <span className="text-3xl opacity-30">🛰️</span>
+                                          </div>
+                                        )}
+                                        {clip.duration_seconds > 0 && (
+                                          <div className="absolute bottom-2 right-2 bg-black/70 px-1.5 rounded text-[10px] font-mono">{formatDuration(clip.duration_seconds)}</div>
+                                        )}
                                     </div>
                                     <div className="p-3">
                                         <h4 className="font-bold text-xs truncate mb-1 text-gray-200">{clip.title}</h4>
-                                        <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{clip.description}</p>
+                                        <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{clip.visual_description || clip.description}</p>
                                         <button 
                                             onClick={() => importExternalClip(clip)}
                                             className="w-full py-1.5 bg-[#222] hover:bg-[#1a73e8] hover:text-white rounded text-[10px] font-bold text-gray-400 transition"
@@ -422,10 +478,12 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
                                 </div>
                             ))}
                         </div>
+                        </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center opacity-30">
                             <span className="text-6xl mb-4">🛰️</span>
-                            <p className="text-sm font-bold uppercase tracking-widest">Connect to {activeFolder.name}</p>
+                            <p className="text-sm font-bold uppercase tracking-widest">Search {activeFolder?.name}</p>
+                            <p className="text-xs mt-1">Enter a query above to browse the archive</p>
                         </div>
                     )}
                 </div>
@@ -456,7 +514,18 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
                                         >
                                             {selectedClipIds.has(clip.id) && <span className="text-[10px]">✓</span>}
                                         </button>
-                                        <img src={clip.thumbnail_url} className="w-full h-full object-cover" alt="" />
+                                        {(clip.thumbnail_url || (clip as any).gcsPath) ? (
+                                          <img
+                                            src={clip.thumbnail_url || `${import.meta.env.VITE_API_URL || ''}/api/gcs/serve?path=${encodeURIComponent((clip as any).gcsPath)}`}
+                                            className="w-full h-full object-cover"
+                                            alt={clip.title}
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center">
+                                            <span className="text-3xl opacity-30">{clip.category === 'Interview' ? '🎤' : '🎬'}</span>
+                                          </div>
+                                        )}
                                         
                                         {/* Status Badges Overlay */}
                                         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
