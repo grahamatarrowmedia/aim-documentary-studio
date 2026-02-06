@@ -72,13 +72,36 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`;
   };
 
+  const skipForward = () => {
+    const next = Math.min(currentTime + 10, maxDuration);
+    setCurrentTime(next);
+    if (isPlaying) {
+      startTimeRef.current = performance.now() - (next * 1000);
+    }
+  };
+
   const exportEDL = () => {
-    const edl = `TITLE: ${project.title}\nFCM: NON-DROP FRAME\n\n001  AX  V  C  00:00:00:00 00:00:15:00 00:00:00:00 00:00:15:00\n* FROM CLIP NAME: Stock_Floor_1995.mp4`;
+    let edl = `TITLE: ${project.title}\nFCM: NON-DROP FRAME\n\n`;
+    const sorted = [...items].sort((a, b) => (a.start_time || 0) - (b.start_time || 0));
+    if (sorted.length === 0) {
+      edl += `001  AX  V  C  00:00:00:00 00:00:00:00 00:00:00:00 00:00:00:00\n* EMPTY TIMELINE\n`;
+    } else {
+      sorted.forEach((item, idx) => {
+        const num = String(idx + 1).padStart(3, '0');
+        const srcIn = formatTimecode(0);
+        const srcOut = formatTimecode(item.duration || 0);
+        const recIn = formatTimecode(item.start_time || 0);
+        const recOut = formatTimecode((item.start_time || 0) + (item.duration || 0));
+        const trackCode = item.track_type === 'audio' || item.track_type === 'music' || item.track_type === 'sfx' ? 'A' : 'V';
+        edl += `${num}  AX  ${trackCode}  C  ${srcIn} ${srcOut} ${recIn} ${recOut}\n`;
+        edl += `* FROM CLIP NAME: ${item.label || 'Untitled'}\n\n`;
+      });
+    }
     const blob = new Blob([edl], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'timeline.edl';
+    a.download = `${project.title.replace(/\s+/g, '_')}_timeline.edl`;
     a.click();
   };
 
@@ -163,7 +186,7 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
             >
                 {isPlaying ? '⏸' : '▶'}
             </button>
-            <button className="text-xl hover:text-white text-gray-400">⏭</button>
+            <button className="text-xl hover:text-white text-gray-400" onClick={skipForward}>⏭</button>
             <div className="text-xl font-mono tracking-tighter text-red-500 w-32">
               {formatTimecode(currentTime)}
             </div>
@@ -172,7 +195,7 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
              <div className="w-48 h-1 bg-[#333] rounded-full overflow-hidden">
                 <div 
                     className="h-full bg-green-500 transition-all duration-75" 
-                    style={{ width: isPlaying ? `${Math.random() * 60 + 20}%` : '5%' }}
+                    style={{ width: isPlaying ? `${Math.abs(Math.sin(currentTime * 3)) * 50 + 25}%` : '5%' }}
                 ></div>
              </div>
              <span className="text-[10px] font-bold text-gray-500">MASTER LEVELS</span>

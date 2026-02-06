@@ -91,18 +91,18 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
   useEffect(() => {
     const fetchVoices = async () => {
         setIsLoadingVoices(true);
-        const voices = await elevenLabsService.getVoices(apiKey);
+        const voices = await elevenLabsService.getVoices(user.id);
         setAvailableVoices(voices);
-        
+
         if (voices.length > 0) {
-            setVoiceOvers(prev => prev.map(vo => 
+            setVoiceOvers(prev => prev.map(vo =>
                 vo.voice_id ? vo : { ...vo, voice_id: voices[0].id, voice_name: voices[0].name }
             ));
         }
         setIsLoadingVoices(false);
     };
     fetchVoices();
-  }, [apiKey]);
+  }, [user.id]);
 
   const generateLine = async (voId: string) => {
     const vo = voiceOvers.find(v => v.id === voId);
@@ -112,9 +112,9 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
 
     try {
         const audioUrl = await elevenLabsService.generateAudio(
-            apiKey, 
-            vo.voice_id, 
-            vo.text, 
+            user.id,
+            vo.voice_id,
+            vo.text,
             vo.generation_settings || defaultSettings
         );
         

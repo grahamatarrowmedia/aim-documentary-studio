@@ -95,12 +95,28 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
     addAgentLog('ARCHIVE_AGENT: Verified clip metadata entries.');
 
     addAgentLog('RESEARCH_AGENT: Loading Deep Research Briefs...');
+    let researchContext: string[] = [];
+    try {
+      const researchDocs = await apiService.getResearchByProject(project.id);
+      researchContext = researchDocs.map((r: any) => r.answer || r.summary || '').filter(Boolean);
+      addAgentLog(`RESEARCH_AGENT: Loaded ${researchContext.length} research briefs.`);
+    } catch { addAgentLog('RESEARCH_AGENT: No research data found.'); }
     await new Promise(r => setTimeout(r, 400));
     addAgentLog('RESEARCH_AGENT: Cross-referencing fact checkpoints.');
 
+    addAgentLog('ARCHIVE_AGENT: Loading archive clip metadata...');
+    let archiveContext: string[] = [];
+    try {
+      const assets = await apiService.getAssetsByProject(project.id);
+      const clips = assets.filter((a: any) => a.assetType !== 'research_source');
+      archiveContext = clips.map((c: any) => `[${c.name || c.title}] ${c.analysis || c.description || ''}`).filter((s: string) => s.trim().length > 2);
+      addAgentLog(`ARCHIVE_AGENT: Loaded ${archiveContext.length} archive clips.`);
+    } catch { addAgentLog('ARCHIVE_AGENT: No archive data found.'); }
+    await new Promise(r => setTimeout(r, 400));
+
     addAgentLog('WRITER_AGENT: Analyzing reference styles with Vertex AI...');
     await new Promise(r => setTimeout(r, 400));
-    
+
     let styleContext = "Standard BBC Documentary Style";
     if (references.length > 0) {
         const styles = references
@@ -110,18 +126,18 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
         styleContext = `Derived from Uploads: ${styles}`;
         addAgentLog(`WRITER_AGENT: Style Match Found: ${styles}`);
     }
-    
+
     addAgentLog('WRITER_AGENT: Synthesizing Narrative Arc...');
     await new Promise(r => setTimeout(r, 1000));
 
     try {
       const partsData = await geminiService.generateScriptMultiAgent(
-          project.title, 
-          project.description, 
+          project.title,
+          project.description,
           project.target_duration_minutes,
           styleContext,
-          [],
-          []
+          researchContext,
+          archiveContext
       );
       
       const parts: ScriptPart[] = partsData.map((p: any, idx: number) => ({
