@@ -25,37 +25,7 @@ const App: React.FC = () => {
   // Start with no user to show Login Screen
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  const [projects, setProjects] = useState<DocumentaryProject[]>([
-    {
-      id: 'proj-declassified',
-      title: 'Declassified',
-      description: 'An investigative anthology series revealing redacted truths behind NASA, massive engineering failures, and the worlds abandoned places.',
-      series_name: 'Declassified',
-      episode_number: 1,
-      target_duration_minutes: 60,
-      target_format: 'documentary',
-      current_phase: 'research',
-      progress: 15,
-      status: 'active',
-      created_at: new Date().toISOString()
-    },
-    // Demo project locked by another user
-    {
-      id: 'proj-eng-fail',
-      title: 'Engineering Failures',
-      description: 'The science behind catastrophic structural collapses in the 20th century.',
-      series_name: 'Declassified',
-      episode_number: 2,
-      target_duration_minutes: 45,
-      target_format: 'documentary',
-      current_phase: 'assembly',
-      progress: 85,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      locked_by: 'u2', // Locked by Sarah
-      locked_by_avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah'
-    }
-  ]);
+  const [projects, setProjects] = useState<DocumentaryProject[]>([]);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);

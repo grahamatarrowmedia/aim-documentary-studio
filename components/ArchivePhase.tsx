@@ -25,22 +25,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
   ]);
 
   const [activeFolderId, setActiveFolderId] = useState<string>('folder-1');
-  const [clips, setClips] = useState<ArchiveClip[]>([
-    {
-      id: 'clip-001',
-      project_id: project.id,
-      folder_id: 'folder-1',
-      title: 'Historical Discovery',
-      archive_source: 'BBC Archive',
-      duration_seconds: 5,
-      in_point: 0,
-      category: 'Historical',
-      thumbnail_url: 'https://picsum.photos/seed/hist1/400/225',
-      visual_description: 'Foundational historical footage.',
-      quality_score: 85,
-      mood: 'Epic'
-    }
-  ]);
+  const [clips, setClips] = useState<ArchiveClip[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -52,13 +37,8 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
   const [newFolderName, setNewFolderName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock script beats for linking
-  const mockScriptBeats = [
-    { id: 'beat-01', title: 'Intro Sequence: Cold Open' },
-    { id: 'beat-02', title: 'Act 1: The Discovery' },
-    { id: 'beat-03', title: 'Act 2: Engineering Failure' },
-    { id: 'beat-04', title: 'Interview: Lead Scientist' },
-  ];
+  // Script beats populated from scripting phase
+  const [scriptBeats] = useState<{ id: string; title: string }[]>([]);
 
   const activeFolder = folders.find(f => f.id === activeFolderId);
   const displayedClips = clips.filter(c => c.folder_id === activeFolderId);
@@ -550,7 +530,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
                 <h3 className="text-xl font-bold text-white mb-4">Link Clips to Script Beat</h3>
                 <p className="text-xs text-gray-500 mb-4">Select a beat to associate with the {selectedClipIds.size} selected clips.</p>
                 <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-                    {mockScriptBeats.map(beat => (
+                    {scriptBeats.map(beat => (
                         <button 
                             key={beat.id}
                             onClick={() => linkToBeat(beat.id)}

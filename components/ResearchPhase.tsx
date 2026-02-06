@@ -44,71 +44,24 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   // ---------------------------------------------------------------------------
   // DATA MODEL: Series & Episodes
   // ---------------------------------------------------------------------------
-  const [seriesList] = useState<ResearchSeries[]>([
-    { id: 's-nasa', title: 'Series 01: NASA', icon: '🚀' },
-    { id: 's-eng', title: 'Series 02: Engineering', icon: '🏗️' },
-    { id: 's-lost', title: 'Series 03: Lost Places', icon: '🏚️' },
-  ]);
+  const [seriesList] = useState<ResearchSeries[]>([]);
 
-  const [episodesList, setEpisodesList] = useState<ResearchEpisode[]>([
-    { id: 'ep-1', series_id: 's-nasa', episode_number: 1, title: 'Moonshot Redacted', status: 'researching' },
-    { id: 'ep-2', series_id: 's-nasa', episode_number: 2, title: 'The Challenger Tape', status: 'planning' },
-    { id: 'ep-3', series_id: 's-nasa', episode_number: 3, title: 'Secret Satellites', status: 'planning' },
-    { id: 'ep-4', series_id: 's-eng', episode_number: 1, title: 'Vajont Dam', status: 'locked' },
-  ]);
+  const [episodesList, setEpisodesList] = useState<ResearchEpisode[]>([]);
 
   // ---------------------------------------------------------------------------
   // STATE: Navigation & Selection
   // ---------------------------------------------------------------------------
-  const [activeSeriesId, setActiveSeriesId] = useState<string>('s-nasa');
-  const [activeEpisodeId, setActiveEpisodeId] = useState<string>('ep-1');
+  const [activeSeriesId, setActiveSeriesId] = useState<string>('');
+  const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
   const [isAddingEpisode, setIsAddingEpisode] = useState(false);
   const [newEpisodeTitle, setNewEpisodeTitle] = useState('');
 
   // ---------------------------------------------------------------------------
   // STATE: NotebookLM-style Sources & Research
   // ---------------------------------------------------------------------------
-  const [sources, setSources] = useState<ResearchSource[]>([
-    {
-      id: 'src-1',
-      episode_id: 'ep-1',
-      type: 'url',
-      title: 'CIA FOIA: Project Azorian Documents',
-      url: 'https://www.cia.gov/readingroom/collection/glomar-explorer',
-      status: 'indexed',
-      added_at: '2 hours ago',
-      summary: 'Declassified documents about the Glomar Explorer operation to recover Soviet submarine K-129.'
-    },
-    {
-      id: 'src-2',
-      episode_id: 'ep-1',
-      type: 'file',
-      title: 'Mission_Report_Declassified_1974.pdf',
-      file_name: 'Mission_Report_Declassified_1974.pdf',
-      file_size: '14.2 MB',
-      status: 'indexed',
-      added_at: '1 hour ago',
-      summary: 'Primary source document containing redacted flight logs and operational details.'
-    }
-  ]);
+  const [sources, setSources] = useState<ResearchSource[]>([]);
 
-  const [researchQueries, setResearchQueries] = useState<ResearchQuery[]>([
-    {
-      id: 'q-1',
-      episode_id: 'ep-1',
-      query: 'What was the cover story for Project Azorian?',
-      response: 'The CIA created an elaborate cover story involving Howard Hughes and his company, Summa Corporation. The official narrative was that the Glomar Explorer was a deep-sea mining vessel designed to harvest manganese nodules from the ocean floor.',
-      key_facts: [
-        'Howard Hughes provided the cover identity',
-        'Summa Corporation was used as the front company',
-        'Manganese nodule mining was the public explanation',
-        'The cover lasted until 1975 when it was exposed'
-      ],
-      sources_used: ['src-1', 'src-2'],
-      timestamp: '1 hour ago',
-      engine: 'google_deep_research'
-    }
-  ]);
+  const [researchQueries, setResearchQueries] = useState<ResearchQuery[]>([]);
 
   // Add source modal state
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);

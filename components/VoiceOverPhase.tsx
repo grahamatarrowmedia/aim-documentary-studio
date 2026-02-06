@@ -33,32 +33,7 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
   
   const apiKey = user.elevenLabsApiKey || '';
 
-  const [voiceOvers, setVoiceOvers] = useState<VoiceOver[]>([
-    {
-      id: 'vo-1',
-      project_id: project.id,
-      beat_id: 'beat-0-0-1',
-      voice_id: '', 
-      voice_name: 'Select Voice',
-      voice_provider: 'elevenlabs',
-      text: 'In the heart of 1990s London, a quiet revolution was beginning. Not one of politics, but of silicon and ambition.',
-      status: 'pending',
-      duration_seconds: 0,
-      generation_settings: { ...defaultSettings }
-    },
-    {
-      id: 'vo-2',
-      project_id: project.id,
-      beat_id: 'beat-0-0-2',
-      voice_id: '',
-      voice_name: 'Select Voice',
-      voice_provider: 'elevenlabs',
-      text: 'Venture capital was about to change the landscape of British business forever.',
-      status: 'pending',
-      duration_seconds: 0,
-      generation_settings: { ...defaultSettings }
-    }
-  ]);
+  const [voiceOvers, setVoiceOvers] = useState<VoiceOver[]>([]);
 
   // Track cursor position to insert tags seamlessly
   const [lastCursorPos, setLastCursorPos] = useState<{ id: string, start: number, end: number } | null>(null);

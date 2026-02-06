@@ -100,8 +100,8 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
           project.description, 
           project.target_duration_minutes,
           styleContext,
-          ["Financial Data 1999", "Interview Transcripts", "Project Azorian Facts"],
-          ["NASA Launch Footage", "Getty Editorial", "Submarine Blueprints"]
+          [],
+          []
       );
       
       const parts: ScriptPart[] = partsData.map((p: any, idx: number) => ({
@@ -306,14 +306,14 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
                             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-xs">🔍</div>
                             <div>
                                 <h4 className="text-sm font-bold">Research Specialist</h4>
-                                <p className="text-[10px] text-gray-500">Connected to 2 Vertex Notebooks</p>
+                                <p className="text-[10px] text-gray-500">Connects to Vertex AI research data</p>
                             </div>
                         </div>
                          <div className="flex items-center gap-4 p-4 bg-[#1a1a1a] border border-[#333] rounded-xl opacity-50">
                             <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center text-xs">📼</div>
                             <div>
                                 <h4 className="text-sm font-bold">Archive Specialist</h4>
-                                <p className="text-[10px] text-gray-500">Connected to NASA & Getty APIs</p>
+                                <p className="text-[10px] text-gray-500">Connects to archive asset database</p>
                             </div>
                         </div>
                         <p className="text-xs text-center text-gray-500 pt-4">Agents will collaborate to produce the draft.</p>

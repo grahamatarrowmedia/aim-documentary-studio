@@ -8,12 +8,7 @@ interface AssemblyPhaseProps {
 }
 
 const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => {
-  const [items, setItems] = useState<TimelineItem[]>([
-    { id: 'ti-1', project_id: project.id, track_type: 'audio', track_index: 0, start_time: 0, end_time: 12, duration: 12, source_type: 'voice_over', label: 'VO Part 1', color: 'bg-blue-600' },
-    { id: 'ti-2', project_id: project.id, track_type: 'video', track_index: 1, start_time: 0, end_time: 15, duration: 15, source_type: 'archive_clip', label: 'Historical Stock Floor', color: 'bg-yellow-600' },
-    { id: 'ti-3', project_id: project.id, track_type: 'music', track_index: 2, start_time: 0, end_time: 30, duration: 30, source_type: 'music', label: 'Ambient Synth Bed', color: 'bg-purple-600' },
-    { id: 'ti-4', project_id: project.id, track_type: 'video', track_index: 1, start_time: 15, end_time: 30, duration: 15, source_type: 'ai_generated', label: 'AI: 90s Startup Office', color: 'bg-red-600' },
-  ]);
+  const [items, setItems] = useState<TimelineItem[]>([]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // in seconds

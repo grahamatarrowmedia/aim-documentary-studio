@@ -10,33 +10,15 @@ interface ExpertInterviewPhaseProps {
 }
 
 const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, onAdvance, onNotify }) => {
-  // In a real app, this script would be passed down or fetched. 
-  // We'll mock the script context here based on previous phases for the demo.
+  // Script context from the scripting phase — starts empty until script is generated
   const [mockScript] = useState<DocumentaryScript>({
-    id: 'script-v1',
+    id: '',
     project_id: project.id,
     version: 1,
     is_current: true,
     status: 'draft',
     estimated_duration_minutes: project.target_duration_minutes,
-    parts: [
-      {
-        id: 'p1',
-        part_number: 1,
-        title: 'The Hidden Frontier',
-        scenes: [
-          {
-            id: 's1',
-            scene_number: 1,
-            title: 'Cold Open',
-            beats: [
-              { id: 'b1', type: 'expert', duration_seconds: 20, topic: 'The scale of the failure', content: '[EXPERT] describes the emotional impact of the disaster.' },
-              { id: 'b2', type: 'expert', duration_seconds: 15, topic: 'The technical oversight', content: '[EXPERT] explains the specific O-ring flaw simply.' }
-            ]
-          }
-        ]
-      }
-    ]
+    parts: []
   });
 
   const [plans, setPlans] = useState<InterviewPlan[]>([]);
@@ -46,11 +28,7 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
   // Production Workflow State
   const [activeProductionId, setActiveProductionId] = useState<string | null>(null);
   const [isProcessingAvatar, setIsProcessingAvatar] = useState(false);
-  const [availableTwins, setAvailableTwins] = useState<DigitalTwin[]>([
-      { id: 'twin-1', name: 'Dr. Sarah Chen (Physics)', thumbnailUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', voice_match_score: 98 },
-      { id: 'twin-2', name: 'Marcus Weber (Historian)', thumbnailUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus', voice_match_score: 95 },
-      { id: 'twin-3', name: 'Elena Rossi (Engineer)', thumbnailUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Elena', voice_match_score: 92 },
-  ]);
+  const [availableTwins, setAvailableTwins] = useState<DigitalTwin[]>([]);
 
   // Initialize Plans from Script Beats
   useEffect(() => {
