@@ -7,61 +7,44 @@
 #     --repo-owner=grahamatarrowmedia \
 #     --branch-pattern=^main$ \
 #     --build-config=cloudbuild.yaml \
-#     --region=europe-west1
+#     --region=global
 #
-# Required Secret Manager secrets (create before first build):
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_FIREBASE_API_KEY,
-#   VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_ELEVENLABS_API_KEY,
-#   GEMINI_API_KEY
+# Optional: To pass secrets as build-time substitutions, update the trigger:
+#
+#   gcloud builds triggers update aim-documentary-studio --region=global \
+#     --update-substitutions=_VITE_SUPABASE_URL=...,_VITE_FIREBASE_API_KEY=...
+#
+# Or create them in Secret Manager and reference via --secret-config.
 
 substitutions:
   _REGION: europe-west1
   _SERVICE_NAME: aim-documentary-studio
   _IMAGE: europe-west1-docker.pkg.dev/gbr-aim-aiengine-prod/aim/documentary-studio
-
-availableSecrets:
-  secretManager:
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_SUPABASE_URL/versions/latest
-      env: VITE_SUPABASE_URL
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_SUPABASE_ANON_KEY/versions/latest
-      env: VITE_SUPABASE_ANON_KEY
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_FIREBASE_API_KEY/versions/latest
-      env: VITE_FIREBASE_API_KEY
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_FIREBASE_AUTH_DOMAIN/versions/latest
-      env: VITE_FIREBASE_AUTH_DOMAIN
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_FIREBASE_PROJECT_ID/versions/latest
-      env: VITE_FIREBASE_PROJECT_ID
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/VITE_ELEVENLABS_API_KEY/versions/latest
-      env: VITE_ELEVENLABS_API_KEY
-    - versionName: projects/gbr-aim-aiengine-prod/secrets/GEMINI_API_KEY/versions/latest
-      env: GEMINI_API_KEY
+  _VITE_SUPABASE_URL: ""
+  _VITE_SUPABASE_ANON_KEY: ""
+  _VITE_FIREBASE_API_KEY: ""
+  _VITE_FIREBASE_AUTH_DOMAIN: ""
+  _VITE_FIREBASE_PROJECT_ID: ""
+  _VITE_ELEVENLABS_API_KEY: ""
+  _GEMINI_API_KEY: ""
 
 steps:
   # Step 1: Build Docker image with frontend env vars as build args
   - name: gcr.io/cloud-builders/docker
-    entrypoint: bash
     args:
-      - -c
-      - |
-        docker build \
-          --build-arg VITE_SUPABASE_URL=$$VITE_SUPABASE_URL \
-          --build-arg VITE_SUPABASE_ANON_KEY=$$VITE_SUPABASE_ANON_KEY \
-          --build-arg VITE_FIREBASE_API_KEY=$$VITE_FIREBASE_API_KEY \
-          --build-arg VITE_FIREBASE_AUTH_DOMAIN=$$VITE_FIREBASE_AUTH_DOMAIN \
-          --build-arg VITE_FIREBASE_PROJECT_ID=$$VITE_FIREBASE_PROJECT_ID \
-          --build-arg VITE_ELEVENLABS_API_KEY=$$VITE_ELEVENLABS_API_KEY \
-          --build-arg GEMINI_API_KEY=$$GEMINI_API_KEY \
-          -t ${_IMAGE}:$COMMIT_SHA \
-          -t ${_IMAGE}:latest \
-          .
-    secretEnv:
-      - VITE_SUPABASE_URL
-      - VITE_SUPABASE_ANON_KEY
-      - VITE_FIREBASE_API_KEY
-      - VITE_FIREBASE_AUTH_DOMAIN
-      - VITE_FIREBASE_PROJECT_ID
-      - VITE_ELEVENLABS_API_KEY
-      - GEMINI_API_KEY
+      - build
+      - --build-arg=VITE_SUPABASE_URL=${_VITE_SUPABASE_URL}
+      - --build-arg=VITE_SUPABASE_ANON_KEY=${_VITE_SUPABASE_ANON_KEY}
+      - --build-arg=VITE_FIREBASE_API_KEY=${_VITE_FIREBASE_API_KEY}
+      - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_VITE_FIREBASE_AUTH_DOMAIN}
+      - --build-arg=VITE_FIREBASE_PROJECT_ID=${_VITE_FIREBASE_PROJECT_ID}
+      - --build-arg=VITE_ELEVENLABS_API_KEY=${_VITE_ELEVENLABS_API_KEY}
+      - --build-arg=GEMINI_API_KEY=${_GEMINI_API_KEY}
+      - -t
+      - ${_IMAGE}:$COMMIT_SHA
+      - -t
+      - ${_IMAGE}:latest
+      - .
     id: build
 
   # Step 2: Push image to Artifact Registry
