@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DocumentaryProject, DocumentaryNotebook, UserProfile, ResearchSeries, ResearchEpisode, KnowledgeAsset, ArchiveClip, ManualSource } from '../types';
 import { geminiService } from '../services/geminiService';
 import { apiService } from '../services/apiService';
@@ -44,7 +44,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   // ---------------------------------------------------------------------------
   // DATA MODEL: Series & Episodes
   // ---------------------------------------------------------------------------
-  const [seriesList] = useState<ResearchSeries[]>([]);
+  const [seriesList, setSeriesList] = useState<ResearchSeries[]>([]);
 
   const [episodesList, setEpisodesList] = useState<ResearchEpisode[]>([]);
 
@@ -55,6 +55,8 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
   const [isAddingEpisode, setIsAddingEpisode] = useState(false);
   const [newEpisodeTitle, setNewEpisodeTitle] = useState('');
+  const [isAddingSeries, setIsAddingSeries] = useState(false);
+  const [newSeriesTitle, setNewSeriesTitle] = useState('');
 
   // ---------------------------------------------------------------------------
   // STATE: NotebookLM-style Sources & Research
@@ -62,6 +64,39 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   const [sources, setSources] = useState<ResearchSource[]>([]);
 
   const [researchQueries, setResearchQueries] = useState<ResearchQuery[]>([]);
+
+  // ---------------------------------------------------------------------------
+  // LOAD DATA FROM BACKEND
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [series, episodes, assets, research] = await Promise.all([
+          apiService.getSeriesByProject(project.id),
+          apiService.getEpisodesByProject(project.id),
+          apiService.getAssetsByProject(project.id),
+          apiService.getResearchByProject(project.id),
+        ]);
+        setSeriesList(series.map((s: any) => ({ id: s.id, title: s.title, icon: s.icon || '📁' })));
+        setEpisodesList(episodes.map((e: any) => ({
+          id: e.id, series_id: e.series_id, episode_number: e.episode_number, title: e.title, status: e.status || 'planning'
+        })));
+        // Research sources stored as assets with assetType='research_source'
+        const researchSources = assets.filter((a: any) => a.assetType === 'research_source');
+        setSources(researchSources);
+        setResearchQueries(research);
+        // Auto-select first series if available
+        if (series.length > 0) {
+          setActiveSeriesId(series[0].id);
+          const firstSeriesEps = episodes.filter((e: any) => e.series_id === series[0].id);
+          if (firstSeriesEps.length > 0) setActiveEpisodeId(firstSeriesEps[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load research data:', err);
+      }
+    };
+    loadData();
+  }, [project.id]);
 
   // Add source modal state
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
@@ -87,28 +122,64 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   const episodeQueries = researchQueries.filter(q => q.episode_id === activeEpisodeId);
 
   // ---------------------------------------------------------------------------
+  // ACTIONS: Series
+  // ---------------------------------------------------------------------------
+  const handleAddSeries = async () => {
+    if (!newSeriesTitle.trim()) return;
+    try {
+      const saved = await apiService.createSeries({
+        projectId: project.id,
+        title: newSeriesTitle,
+        icon: '📁',
+        order: seriesList.length
+      });
+      const newSeries: ResearchSeries = { id: saved.id, title: saved.title, icon: saved.icon || '📁' };
+      setSeriesList(prev => [...prev, newSeries]);
+      setActiveSeriesId(saved.id);
+      setActiveEpisodeId('');
+      onNotify('Series Created', newSeriesTitle, 'success');
+    } catch (err) {
+      console.error('Failed to create series:', err);
+      onNotify('Error', 'Failed to create series', 'error');
+    }
+    setIsAddingSeries(false);
+    setNewSeriesTitle('');
+  };
+
+  // ---------------------------------------------------------------------------
   // ACTIONS: Episodes
   // ---------------------------------------------------------------------------
-  const handleAddEpisode = () => {
+  const handleAddEpisode = async () => {
     if (!newEpisodeTitle.trim()) return;
     const currentSeriesEpisodes = episodesList.filter(e => e.series_id === activeSeriesId);
     const nextEpNum = currentSeriesEpisodes.length > 0
       ? Math.max(...currentSeriesEpisodes.map(e => e.episode_number)) + 1
       : 1;
 
-    const newEp: ResearchEpisode = {
-      id: `ep-${Date.now()}`,
-      series_id: activeSeriesId,
-      episode_number: nextEpNum,
-      title: newEpisodeTitle,
-      status: 'planning'
-    };
-
-    setEpisodesList(prev => [...prev, newEp]);
-    onNotify('Episode Created', `EP${nextEpNum}: ${newEpisodeTitle}`, 'success');
+    try {
+      const saved = await apiService.createEpisode({
+        projectId: project.id,
+        series_id: activeSeriesId,
+        episode_number: nextEpNum,
+        title: newEpisodeTitle,
+        status: 'planning'
+      });
+      const newEp: ResearchEpisode = {
+        id: saved.id,
+        series_id: activeSeriesId,
+        episode_number: nextEpNum,
+        title: newEpisodeTitle,
+        status: 'planning'
+      };
+      setEpisodesList(prev => [...prev, newEp]);
+      onNotify('Episode Created', `EP${nextEpNum}: ${newEpisodeTitle}`, 'success');
+      setActiveEpisodeId(saved.id);
+    } catch (err) {
+      console.error('Failed to create episode:', err);
+      onNotify('Error', 'Failed to create episode', 'error');
+    }
     setIsAddingEpisode(false);
     setNewEpisodeTitle('');
-    setActiveEpisodeId(newEp.id);
   };
 
   // ---------------------------------------------------------------------------
@@ -163,17 +234,20 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
       });
 
       if (analysis.status === 'indexed') {
+        const indexedSource = {
+          ...newSource,
+          status: 'indexed' as const,
+          title: analysis.title || newSource.title,
+          summary: analysis.summary,
+          key_topics: analysis.key_topics,
+          key_facts: analysis.key_facts
+        };
+        // Persist to backend
+        const saved = await apiService.createAsset({
+          ...indexedSource, projectId: project.id, assetType: 'research_source'
+        });
         setSources(prev => prev.map(s =>
-          s.id === newSource.id
-            ? {
-                ...s,
-                status: 'indexed',
-                title: analysis.title || s.title,
-                summary: analysis.summary,
-                key_topics: analysis.key_topics,
-                key_facts: analysis.key_facts
-              }
-            : s
+          s.id === newSource.id ? { ...indexedSource, id: saved.id } : s
         ));
         onNotify('Source Indexed', `${analysis.title || newSource.title} analyzed successfully.`, 'success');
       } else {
@@ -220,17 +294,19 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
         });
 
         if (analysis.status === 'indexed') {
+          const indexedSource = {
+            ...newSource,
+            status: 'indexed' as const,
+            title: analysis.title || newSource.title,
+            summary: analysis.summary,
+            key_topics: analysis.key_topics,
+            key_facts: analysis.key_facts
+          };
+          const saved = await apiService.createAsset({
+            ...indexedSource, projectId: project.id, assetType: 'research_source'
+          });
           setSources(prev => prev.map(s =>
-            s.id === newSource.id
-              ? {
-                  ...s,
-                  status: 'indexed',
-                  title: analysis.title || s.title,
-                  summary: analysis.summary,
-                  key_topics: analysis.key_topics,
-                  key_facts: analysis.key_facts
-                }
-              : s
+            s.id === newSource.id ? { ...indexedSource, id: saved.id } : s
           ));
           onNotify('Document Analyzed', `${file.name} indexed with ${(analysis.key_facts || []).length} key facts.`, 'success');
         } else {
@@ -274,6 +350,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
 
   const removeSource = (sourceId: string) => {
     setSources(prev => prev.filter(s => s.id !== sourceId));
+    apiService.deleteAsset(sourceId).catch(err => console.error('Failed to delete source:', err));
     onNotify('Source Removed', 'Source removed from research context.', 'info');
   };
 
@@ -321,8 +398,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
         throw new Error(result.error);
       }
 
-      const newQuery: ResearchQuery = {
-        id: queryId,
+      const queryData = {
         episode_id: activeEpisodeId,
         query: researchPrompt,
         response: result.response || 'Research completed.',
@@ -332,6 +408,10 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
         engine: selectedEngine
       };
 
+      // Persist to backend
+      const saved = await apiService.createResearch({ ...queryData, projectId: project.id });
+
+      const newQuery: ResearchQuery = { ...queryData, id: saved.id };
       setResearchQueries(prev => [newQuery, ...prev]);
       setResearchPrompt('');
       onNotify('Research Complete', `Found ${(result.key_facts || []).length} key facts from ${indexedSources.length} sources.`, 'success');
@@ -396,6 +476,23 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
                   <span>{s.icon}</span> {s.title}
                 </button>
               ))}
+              {!isAddingSeries ? (
+                <button onClick={() => setIsAddingSeries(true)} className="w-full text-left p-2 text-[10px] text-gray-600 hover:text-gray-400">+ Add Series</button>
+              ) : (
+                <div className="p-2 bg-[#1a1a1a] rounded">
+                  <input
+                    autoFocus type="text" value={newSeriesTitle}
+                    onChange={(e) => setNewSeriesTitle(e.target.value)}
+                    placeholder="Series Title"
+                    className="w-full bg-transparent text-xs text-white placeholder-gray-600 focus:outline-none mb-2"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddSeries()}
+                  />
+                  <div className="flex gap-1">
+                    <button onClick={handleAddSeries} className="text-[9px] font-bold text-white bg-green-600 px-2 py-1 rounded">CREATE</button>
+                    <button onClick={() => setIsAddingSeries(false)} className="text-[9px] text-gray-400 px-2 py-1">CANCEL</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

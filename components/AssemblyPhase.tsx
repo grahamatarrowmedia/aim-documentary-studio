@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentaryProject, TimelineItem } from '../types';
+import { apiService } from '../services/apiService';
 
 interface AssemblyPhaseProps {
   project: DocumentaryProject;
@@ -9,6 +10,14 @@ interface AssemblyPhaseProps {
 
 const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => {
   const [items, setItems] = useState<TimelineItem[]>([]);
+
+  // Load timeline items from backend shots
+  useEffect(() => {
+    apiService.getShotsByProject(project.id).then((shots: any[]) => {
+      const timelineShots = shots.filter((s: any) => s.track_type);
+      setItems(timelineShots);
+    }).catch(err => console.error('Failed to load timeline:', err));
+  }, [project.id]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // in seconds

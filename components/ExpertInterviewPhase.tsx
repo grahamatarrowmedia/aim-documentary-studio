@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentaryProject, DocumentaryScript, InterviewPlan, ExpertCandidate, AvatarEnvironment, DigitalTwin } from '../types';
 import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 
 interface ExpertInterviewPhaseProps {
   project: DocumentaryProject;
@@ -10,8 +11,8 @@ interface ExpertInterviewPhaseProps {
 }
 
 const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, onAdvance, onNotify }) => {
-  // Script context from the scripting phase — starts empty until script is generated
-  const [mockScript] = useState<DocumentaryScript>({
+  // Script context loaded from backend
+  const [mockScript, setMockScript] = useState<DocumentaryScript>({
     id: '',
     project_id: project.id,
     version: 1,
@@ -24,14 +25,37 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
   const [plans, setPlans] = useState<InterviewPlan[]>([]);
   const [loadingPlanIds, setLoadingPlanIds] = useState<Set<string>>(new Set());
   const [loadingCandidatesIds, setLoadingCandidatesIds] = useState<Set<string>>(new Set());
-  
+
   // Production Workflow State
   const [activeProductionId, setActiveProductionId] = useState<string | null>(null);
   const [isProcessingAvatar, setIsProcessingAvatar] = useState(false);
   const [availableTwins, setAvailableTwins] = useState<DigitalTwin[]>([]);
 
-  // Initialize Plans from Script Beats
+  // Load script + interview plans from backend
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [scripts, interviews] = await Promise.all([
+          apiService.getScriptsByProject(project.id),
+          apiService.getInterviewsByProject(project.id),
+        ]);
+        if (scripts.length > 0) {
+          const latest = scripts.sort((a: any, b: any) => (b.version || 0) - (a.version || 0))[0];
+          setMockScript(latest);
+        }
+        if (interviews.length > 0) {
+          setPlans(interviews);
+        }
+      } catch (err) {
+        console.error('Failed to load interview data:', err);
+      }
+    };
+    loadData();
+  }, [project.id]);
+
+  // Initialize plans from script beats (only when script loads and no saved plans)
+  useEffect(() => {
+    if (plans.length > 0 || mockScript.parts.length === 0) return;
     const initialPlans: InterviewPlan[] = [];
     mockScript.parts.forEach(part => {
       part.scenes.forEach(scene => {
@@ -52,8 +76,18 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
         });
       });
     });
-    setPlans(initialPlans);
-  }, [mockScript]);
+    if (initialPlans.length > 0) {
+      // Persist new plans
+      Promise.all(initialPlans.map(p =>
+        apiService.createInterview({ ...p, projectId: project.id })
+      )).then(saved => {
+        setPlans(saved.map((s: any, i: number) => ({ ...initialPlans[i], id: s.id })));
+      }).catch(err => {
+        console.error('Failed to persist plans:', err);
+        setPlans(initialPlans);
+      });
+    }
+  }, [mockScript, plans.length, project.id]);
 
   const generateStrategy = async (planId: string) => {
     setLoadingPlanIds(prev => new Set(prev).add(planId));
@@ -64,12 +98,9 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
       onNotify('Generating Strategy', `Drafting ideal sync for: ${plan.topic}`, 'info');
       const result = await geminiService.generateInterviewPlan(plan.scene_context, plan.topic);
       
-      setPlans(prev => prev.map(p => p.id === planId ? {
-        ...p,
-        ideal_soundbite: result.ideal_soundbite,
-        questions: result.questions, // Automatically populate AI questions
-        status: 'ready'
-      } : p));
+      const update = { ideal_soundbite: result.ideal_soundbite, questions: result.questions, status: 'ready' as const };
+      setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...update } : p));
+      apiService.updateInterview(planId, update).catch(err => console.error('Failed to persist strategy:', err));
       onNotify('Strategy Ready', 'Ideal soundbite & questions generated.', 'success');
     } catch (e) {
       console.error(e);
@@ -106,6 +137,7 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
       experts.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));
 
       setPlans(prev => prev.map(p => p.id === planId ? { ...p, candidates: experts, status: 'booked' } : p));
+      apiService.updateInterview(planId, { candidates: experts, status: 'booked' }).catch(err => console.error('Failed to persist candidates:', err));
       onNotify('Candidates Found', `${experts.length} experts identified via Google Search.`, 'success');
     } catch (e) {
       console.error(e);
@@ -129,13 +161,13 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
 
     onNotify('Audio Uploaded', `File "${file.name}" attached to interview plan.`, 'success');
 
-    // Update plan with audio info and trigger AI environment recommendation
-    setPlans(prev => prev.map(p => p.id === planId ? {
-      ...p,
-      production_status: 'audio_uploaded',
+    const audioUpdate = {
+      production_status: 'audio_uploaded' as const,
       audio_filename: file.name,
-      audio_duration: file.size / 16000 // Estimate duration from file size
-    } : p));
+      audio_duration: file.size / 16000
+    };
+    setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...audioUpdate } : p));
+    apiService.updateInterview(planId, audioUpdate).catch(err => console.error('Failed to persist audio:', err));
 
     triggerEnvironmentRecommendation(planId);
   };
@@ -148,12 +180,9 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
       
       try {
           const env = await geminiService.recommendAvatarEnvironment(plan.scene_context, plan.topic);
-          setPlans(prev => prev.map(p => p.id === planId ? {
-              ...p,
-              selected_environment: env,
-              environment_rationale: env.description,
-              production_status: 'environment_selected'
-          } : p));
+          const envUpdate = { selected_environment: env, environment_rationale: env.description, production_status: 'environment_selected' as const };
+          setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...envUpdate } : p));
+          apiService.updateInterview(planId, envUpdate).catch(err => console.error('Failed to persist env:', err));
           onNotify('Environment Selected', `AI selected: ${env.name}`, 'success');
       } catch (e) {
           console.error(e);
@@ -163,6 +192,7 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
 
   const selectAvatar = (planId: string, twin: DigitalTwin) => {
       setPlans(prev => prev.map(p => p.id === planId ? { ...p, selected_avatar: twin } : p));
+      apiService.updateInterview(planId, { selected_avatar: twin }).catch(err => console.error('Failed to persist avatar:', err));
   };
 
   const handleCreateTwin = () => {
@@ -193,11 +223,9 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
               plan.selected_environment.id
           );
 
-          setPlans(prev => prev.map(p => p.id === planId ? { 
-              ...p, 
-              production_status: 'completed',
-              generated_video_url: videoUrl
-          } : p));
+          const videoUpdate = { production_status: 'completed' as const, generated_video_url: videoUrl };
+          setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...videoUpdate } : p));
+          apiService.updateInterview(planId, videoUpdate).catch(err => console.error('Failed to persist video:', err));
           onNotify('Production Complete', 'Avatar video generated successfully.', 'success');
       } catch (e) {
           console.error(e);

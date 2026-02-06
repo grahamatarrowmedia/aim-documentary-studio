@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentaryProject, VoiceOver, VoiceTalent, ElevenLabsSettings, UserProfile } from '../types';
 import { elevenLabsService } from '../services/elevenLabsService';
+import { apiService } from '../services/apiService';
 
 interface VoiceOverPhaseProps {
   project: DocumentaryProject;
@@ -34,6 +35,55 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
   const apiKey = user.elevenLabsApiKey || '';
 
   const [voiceOvers, setVoiceOvers] = useState<VoiceOver[]>([]);
+
+  // Load voice-overs from backend (or initialize from script)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const shots = await apiService.getShotsByProject(project.id);
+        const voShots = shots.filter((s: any) => s.source_type === 'voice_over');
+        if (voShots.length > 0) {
+          setVoiceOvers(voShots);
+        } else {
+          // Try to derive from script beats
+          const scripts = await apiService.getScriptsByProject(project.id);
+          if (scripts.length > 0) {
+            const latest = scripts.sort((a: any, b: any) => (b.version || 0) - (a.version || 0))[0];
+            const voBeats: VoiceOver[] = [];
+            (latest.parts || []).forEach((part: any) => {
+              (part.scenes || []).forEach((scene: any) => {
+                (scene.beats || []).forEach((beat: any) => {
+                  if (beat.type === 'voice_over') {
+                    voBeats.push({
+                      id: `vo-${beat.id}`,
+                      project_id: project.id,
+                      beat_id: beat.id,
+                      voice_id: '',
+                      voice_name: '',
+                      voice_provider: 'elevenlabs',
+                      text: beat.content || '',
+                      duration_seconds: beat.duration_seconds || 15,
+                      status: 'pending',
+                      generation_settings: defaultSettings
+                    });
+                  }
+                });
+              });
+            });
+            if (voBeats.length > 0) {
+              const saved = await Promise.all(voBeats.map(vo =>
+                apiService.createShot({ ...vo, projectId: project.id, source_type: 'voice_over' })
+              ));
+              setVoiceOvers(saved.map((s: any, i: number) => ({ ...voBeats[i], id: s.id })));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load voice-overs:', err);
+      }
+    };
+    loadData();
+  }, [project.id]);
 
   // Track cursor position to insert tags seamlessly
   const [lastCursorPos, setLastCursorPos] = useState<{ id: string, start: number, end: number } | null>(null);
@@ -68,12 +118,9 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
             vo.generation_settings || defaultSettings
         );
         
-        setVoiceOvers(prev => prev.map(v => v.id === voId ? { 
-            ...v, 
-            status: 'complete', 
-            audio_url: audioUrl,
-            duration_seconds: 12.5 
-        } : v));
+        const voUpdate = { status: 'complete' as const, audio_url: audioUrl, duration_seconds: 12.5 };
+        setVoiceOvers(prev => prev.map(v => v.id === voId ? { ...v, ...voUpdate } : v));
+        apiService.updateShot(voId, voUpdate).catch(err => console.error('Failed to persist VO:', err));
     } catch (error) {
         console.error(error);
         setVoiceOvers(prev => prev.map(v => v.id === voId ? { ...v, status: 'failed' } : v));
@@ -95,9 +142,11 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
 
   const updateVoiceSelection = (voId: string, voiceId: string) => {
       const voice = availableVoices.find(v => v.id === voiceId);
-      setVoiceOvers(prev => prev.map(vo => 
-        vo.id === voId ? { ...vo, voice_id: voiceId, voice_name: voice?.name || 'Unknown', status: 'pending' } : vo
+      const update = { voice_id: voiceId, voice_name: voice?.name || 'Unknown', status: 'pending' as const };
+      setVoiceOvers(prev => prev.map(vo =>
+        vo.id === voId ? { ...vo, ...update } : vo
       ));
+      apiService.updateShot(voId, update).catch(err => console.error('Failed to persist voice selection:', err));
   };
 
   const handleTextSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>, id: string) => {

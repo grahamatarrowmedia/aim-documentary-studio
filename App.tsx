@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
-import { 
-  DocumentaryProject, 
-  ProjectPhase, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  DocumentaryProject,
+  ProjectPhase,
   UserProfile,
   Notification
 } from './types';
+import { apiService } from './services/apiService';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ResearchPhase from './components/ResearchPhase';
@@ -37,9 +38,23 @@ const App: React.FC = () => {
 
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
 
+  const loadProjects = useCallback(async () => {
+    try {
+      const data = await apiService.getProjects();
+      setProjects(data);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    }
+  }, []);
+
   const handleLogin = (selectedUser: UserProfile) => {
     setUser(selectedUser);
   };
+
+  // Fetch projects from backend once logged in
+  useEffect(() => {
+    if (user) loadProjects();
+  }, [user, loadProjects]);
 
   const handleLogout = () => {
     setUser(null);
@@ -59,41 +74,45 @@ const App: React.FC = () => {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  const handleCreateProject = (title: string, desc: string, templateId?: string) => {
-    const newProj: DocumentaryProject = {
-      id: `proj-${Date.now()}`,
-      title,
-      description: desc,
-      target_duration_minutes: 30,
-      target_format: templateId === 'short-int' ? 'short_form' : (templateId === 'tech-expl' ? 'explainer' : 'documentary'),
-      current_phase: 'research',
-      progress: 0,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      template_id: templateId,
-      locked_by: user?.id // Auto-lock for creator
-    };
-    setProjects(prev => [...prev, newProj]);
-    setActiveProjectId(newProj.id);
-    setIsSpectatorMode(false);
-    setCurrentGlobalPhase(null);
-    addNotification('Project Created', `Started work on "${title}"`, 'success');
+  const handleCreateProject = async (title: string, desc: string, templateId?: string) => {
+    try {
+      const payload = {
+        title,
+        description: desc,
+        target_duration_minutes: 30,
+        target_format: templateId === 'short-int' ? 'short_form' : (templateId === 'tech-expl' ? 'explainer' : 'documentary'),
+        current_phase: 'research',
+        progress: 0,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        template_id: templateId,
+        locked_by: user?.id
+      };
+      const saved = await apiService.createProject(payload);
+      setProjects(prev => [...prev, saved]);
+      setActiveProjectId(saved.id);
+      setIsSpectatorMode(false);
+      setCurrentGlobalPhase(null);
+      addNotification('Project Created', `Started work on "${title}"`, 'success');
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      addNotification('Error', 'Failed to create project', 'error');
+    }
   };
 
-  const handleSelectProject = (projectId: string) => {
+  const handleSelectProject = async (projectId: string) => {
       const proj = projects.find(p => p.id === projectId);
       if (!proj) return;
 
       if (proj.locked_by && proj.locked_by !== user?.id) {
-          // Project is locked by someone else -> Spectator Mode
           setIsSpectatorMode(true);
           addNotification('Spectator Mode', 'This project is currently being edited by another user. You are in read-only mode.', 'warning');
       } else {
-          // Project is free or locked by us -> Edit Mode
           setIsSpectatorMode(false);
-          // If free, lock it for the current user
           if (!proj.locked_by) {
-             setProjects(prev => prev.map(p => p.id === projectId ? { ...p, locked_by: user?.id, locked_by_avatar: user?.avatar } : p));
+             const lockData = { locked_by: user?.id, locked_by_avatar: user?.avatar };
+             setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...lockData } : p));
+             apiService.updateProject(projectId, lockData).catch(err => console.error('Failed to lock project:', err));
           }
       }
       setActiveProjectId(projectId);
@@ -105,8 +124,10 @@ const App: React.FC = () => {
         alert("Action blocked: You are in Spectator Mode.");
         return;
     }
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, current_phase: phase, progress } : p));
+    const update = { current_phase: phase, progress };
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...update } : p));
     setCurrentGlobalPhase(null);
+    apiService.updateProject(id, update).catch(err => console.error('Failed to update project phase:', err));
   };
 
   const handleGlobalPhaseSwitch = (phase: ProjectPhase) => {

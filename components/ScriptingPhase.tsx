@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DocumentaryProject, DocumentaryScript, ScriptPart, ScriptBeat, ReferenceDocument } from '../types';
 import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 
 interface ScriptingPhaseProps {
   project: DocumentaryProject;
@@ -12,6 +13,25 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
   const [script, setScript] = useState<DocumentaryScript | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [references, setReferences] = useState<ReferenceDocument[]>([]);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Load existing script from backend
+  useEffect(() => {
+    apiService.getScriptsByProject(project.id).then((scripts: any[]) => {
+      if (scripts.length > 0) {
+        const latest = scripts.sort((a: any, b: any) => (b.version || 0) - (a.version || 0))[0];
+        setScript(latest);
+      }
+    }).catch(err => console.error('Failed to load scripts:', err));
+  }, [project.id]);
+
+  // Debounced auto-save when script changes
+  const persistScript = (s: DocumentaryScript) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      apiService.updateScript(s.id, s).catch(err => console.error('Failed to save script:', err));
+    }, 1500);
+  };
   
   // Refinement State
   const [rewritingBeatId, setRewritingBeatId] = useState<string | null>(null);
@@ -122,15 +142,17 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
         }))
       }));
 
-      setScript({
-        id: 'script-v1',
+      const scriptData = {
+        projectId: project.id,
         project_id: project.id,
         version: 1,
         is_current: true,
         status: 'draft',
         parts,
         estimated_duration_minutes: project.target_duration_minutes
-      });
+      };
+      const saved = await apiService.createScript(scriptData);
+      setScript({ ...scriptData, id: saved.id });
       addAgentLog('SYSTEM: Generation Complete.');
     } catch (err) {
       console.error(err);
@@ -151,7 +173,9 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
         beats: s.beats.map(b => b.id === beatId ? { ...b, content: newContentHtml } : b)
       }))
     }));
-    setScript({ ...script, parts: nextParts });
+    const updated = { ...script, parts: nextParts };
+    setScript(updated);
+    persistScript(updated);
   };
 
   const handleRewrite = async (beatId: string, currentContent: string) => {

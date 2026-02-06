@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DocumentaryProject, ArchiveClip, ArchiveFolder } from '../types';
 import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 
 // Format seconds to mm:ss display
 const formatDuration = (seconds: number): string => {
@@ -26,6 +27,14 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
 
   const [activeFolderId, setActiveFolderId] = useState<string>('folder-1');
   const [clips, setClips] = useState<ArchiveClip[]>([]);
+
+  // Load clips from backend
+  useEffect(() => {
+    apiService.getAssetsByProject(project.id).then((assets: any[]) => {
+      const archiveClips = assets.filter(a => a.assetType !== 'research_source');
+      setClips(archiveClips);
+    }).catch(err => console.error('Failed to load clips:', err));
+  }, [project.id]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -57,6 +66,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
     try {
       const data = await geminiService.analyzeClip(clip.title);
       setClips(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+      apiService.updateAsset(id, data).catch(err => console.error('Failed to persist clip analysis:', err));
       onNotify('Analysis Complete', `Analyzed ${clip.title}`, 'success');
     } catch (err: any) {
       console.error(err);
@@ -87,6 +97,10 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
 
   const linkToBeat = (beatId: string) => {
     setClips(prev => prev.map(c => selectedClipIds.has(c.id) ? { ...c, linked_beat_id: beatId } : c));
+    // Persist link for each selected clip
+    selectedClipIds.forEach(id => {
+      apiService.updateAsset(id, { linked_beat_id: beatId }).catch(err => console.error('Failed to persist link:', err));
+    });
     setShowLinkModal(false);
     onNotify('Linked', `${selectedClipIds.size} clips linked to beat.`, 'success');
     setSelectedClipIds(new Set<string>());
@@ -133,12 +147,19 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
     }
   };
 
-  const importExternalClip = (clip: ArchiveClip) => {
+  const importExternalClip = async (clip: ArchiveClip) => {
     const importFolder = folders.find(f => f.name === 'Raw Footage') || folders[0];
     if (!importFolder) return;
-    const newClip = { ...clip, id: `imp-${Date.now()}`, folder_id: importFolder.id };
-    setClips(prev => [newClip, ...prev]);
-    onNotify('Clip Imported', `Added to ${importFolder.name}`, 'success');
+    try {
+      const saved = await apiService.createAsset({
+        ...clip, folder_id: importFolder.id, projectId: project.id, assetType: 'archive_clip'
+      });
+      setClips(prev => [{ ...clip, id: saved.id, folder_id: importFolder.id }, ...prev]);
+      onNotify('Clip Imported', `Added to ${importFolder.name}`, 'success');
+    } catch (err) {
+      console.error('Failed to import clip:', err);
+      onNotify('Import Failed', 'Could not save clip', 'error');
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +199,11 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
         }));
 
         if (newClips.length > 0) {
-          setClips(prev => [...newClips, ...prev]);
+          // Persist all clips to backend
+          const savedClips = await Promise.all(newClips.map(c =>
+            apiService.createAsset({ ...c, projectId: project.id, assetType: 'archive_clip' })
+          ));
+          setClips(prev => [...savedClips, ...prev]);
           onNotify('Log Imported', `${newClips.length} clips created from manifest.`, 'success');
         } else {
           onNotify('Log Parsed', 'No timeline events found in file.', 'info');
@@ -222,8 +247,7 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           ? (metadata.category as ValidCategory)
           : 'B-Roll';
 
-        const newClip: ArchiveClip = {
-          id: `upl-${Date.now()}`,
+        const clipData = {
           project_id: project.id,
           folder_id: activeFolderId,
           title: metadata.title || file.name,
@@ -233,23 +257,24 @@ const ArchivePhase: React.FC<ArchivePhaseProps> = ({ project, onAdvance, onNotif
           thumbnail_url: 'https://picsum.photos/seed/upload/400/225'
         };
 
-        setClips(prev => [newClip, ...prev]);
+        const saved = await apiService.createAsset({ ...clipData, projectId: project.id, assetType: 'archive_clip' });
+        setClips(prev => [{ ...clipData, id: saved.id } as ArchiveClip, ...prev]);
         onNotify('Upload Complete', 'Asset analyzed and ready.', 'success');
         setShowUploadModal(false);
       } catch (error) {
         console.error('Video analysis failed:', error);
         // Still add the clip with basic info
-        const newClip: ArchiveClip = {
-          id: `upl-${Date.now()}`,
+        const fallbackData = {
           project_id: project.id,
           folder_id: activeFolderId,
           title: file.name,
           duration_seconds: 60,
           in_point: 0,
-          category: 'B-Roll',
+          category: 'B-Roll' as const,
           thumbnail_url: 'https://picsum.photos/seed/upload/400/225'
         };
-        setClips(prev => [newClip, ...prev]);
+        const savedFallback = await apiService.createAsset({ ...fallbackData, projectId: project.id, assetType: 'archive_clip' }).catch(() => ({ id: `upl-${Date.now()}` }));
+        setClips(prev => [{ ...fallbackData, id: savedFallback.id } as ArchiveClip, ...prev]);
         onNotify('Upload Complete', 'Asset added (analysis pending).', 'info');
         setShowUploadModal(false);
       }

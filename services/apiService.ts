@@ -21,6 +21,28 @@ async function fetchAPI(endpoint: string, body: any) {
     return response.json();
 }
 
+async function fetchGET(endpoint: string) {
+    const response = await fetch(`${API_BASE}${endpoint}`);
+    if (!response.ok) throw new Error(`GET ${endpoint} failed`);
+    return response.json();
+}
+
+async function fetchPUT(endpoint: string, body: any) {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`PUT ${endpoint} failed`);
+    return response.json();
+}
+
+async function fetchDELETE(endpoint: string) {
+    const response = await fetch(`${API_BASE}${endpoint}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`DELETE ${endpoint} failed`);
+    return response.json();
+}
+
 export const apiService = {
     // Research with engine selection (gemini_pro, vertex_ai, perplexity, google_deep_research)
     async summarizeResearch(topic: string, engine: string = 'gemini_pro', systemInstruction: string = '') {
@@ -118,7 +140,54 @@ export const apiService = {
         });
         if (!response.ok) throw new Error('Failed to update user');
         return response.json();
-    }
+    },
+
+    // Projects
+    async getProjects() { return fetchGET('/api/projects'); },
+    async createProject(data: Record<string, any>) { return fetchAPI('/api/projects', data); },
+    async updateProject(id: string, data: Record<string, any>) { return fetchPUT(`/api/projects/${id}`, data); },
+
+    // Series
+    async getSeriesByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/series`); },
+    async createSeries(data: Record<string, any>) { return fetchAPI('/api/series', data); },
+    async updateSeries(id: string, data: Record<string, any>) { return fetchPUT(`/api/series/${id}`, data); },
+    async deleteSeries(id: string) { return fetchDELETE(`/api/series/${id}`); },
+
+    // Episodes
+    async getEpisodesByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/episodes`); },
+    async createEpisode(data: Record<string, any>) { return fetchAPI('/api/episodes', data); },
+    async updateEpisode(id: string, data: Record<string, any>) { return fetchPUT(`/api/episodes/${id}`, data); },
+    async deleteEpisode(id: string) { return fetchDELETE(`/api/episodes/${id}`); },
+
+    // Research
+    async getResearchByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/research`); },
+    async createResearch(data: Record<string, any>) { return fetchAPI('/api/research', data); },
+    async updateResearch(id: string, data: Record<string, any>) { return fetchPUT(`/api/research/${id}`, data); },
+    async deleteResearch(id: string) { return fetchDELETE(`/api/research/${id}`); },
+
+    // Assets (archive clips, research sources)
+    async getAssetsByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/assets`); },
+    async createAsset(data: Record<string, any>) { return fetchAPI('/api/assets', data); },
+    async updateAsset(id: string, data: Record<string, any>) { return fetchPUT(`/api/assets/${id}`, data); },
+    async deleteAsset(id: string) { return fetchDELETE(`/api/assets/${id}`); },
+
+    // Scripts
+    async getScriptsByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/scripts`); },
+    async createScript(data: Record<string, any>) { return fetchAPI('/api/scripts', data); },
+    async updateScript(id: string, data: Record<string, any>) { return fetchPUT(`/api/scripts/${id}`, data); },
+    async deleteScript(id: string) { return fetchDELETE(`/api/scripts/${id}`); },
+
+    // Interviews
+    async getInterviewsByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/interviews`); },
+    async createInterview(data: Record<string, any>) { return fetchAPI('/api/interviews', data); },
+    async updateInterview(id: string, data: Record<string, any>) { return fetchPUT(`/api/interviews/${id}`, data); },
+    async deleteInterview(id: string) { return fetchDELETE(`/api/interviews/${id}`); },
+
+    // Shots (timeline items, voice-overs)
+    async getShotsByProject(projectId: string) { return fetchGET(`/api/projects/${projectId}/shots`); },
+    async createShot(data: Record<string, any>) { return fetchAPI('/api/shots', data); },
+    async updateShot(id: string, data: Record<string, any>) { return fetchPUT(`/api/shots/${id}`, data); },
+    async deleteShot(id: string) { return fetchDELETE(`/api/shots/${id}`); }
 };
 
 // Re-export as geminiService for backwards compatibility with existing components
