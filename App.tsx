@@ -20,6 +20,7 @@ import ProfileSettings from './components/ProfileSettings';
 import CloudServices from './components/CloudServices';
 import ProducerChat from './components/ProducerChat';
 import NotificationCenter from './components/NotificationCenter';
+import PlanningPhase from './components/PlanningPhase';
 import LoginScreen from './components/LoginScreen';
 
 const App: React.FC = () => {
@@ -81,7 +82,7 @@ const App: React.FC = () => {
         description: desc,
         target_duration_minutes: 30,
         target_format: templateId === 'short-int' ? 'short_form' : (templateId === 'tech-expl' ? 'explainer' : 'documentary'),
-        current_phase: 'research',
+        current_phase: 'planning',
         progress: 0,
         status: 'active',
         created_at: new Date().toISOString(),
@@ -153,13 +154,14 @@ const App: React.FC = () => {
     // but for this demo, the Dashboard alerts are the primary indicator.
 
     switch (activeProject.current_phase) {
+      case 'planning': return <PlanningPhase {...commonProps} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'research', 15)} />;
       case 'research': return <ResearchPhase {...commonProps} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'archive', 30)} />;
       case 'archive': return <ArchivePhase {...commonProps} onAdvance={() => updateProjectPhase(activeProject.id, 'scripting', 45)} />;
       case 'scripting': return <ScriptingPhase project={activeProject} onAdvance={() => updateProjectPhase(activeProject.id, 'expert_interview', 60)} />;
       case 'expert_interview': return <ExpertInterviewPhase {...commonProps} onAdvance={() => updateProjectPhase(activeProject.id, 'voice_over', 70)} />;
       case 'voice_over': return <VoiceOverPhase project={activeProject} user={user} onAdvance={() => updateProjectPhase(activeProject.id, 'assembly', 85)} />;
       case 'assembly': return <AssemblyPhase project={activeProject} onAdvance={() => updateProjectPhase(activeProject.id, 'review', 95)} />;
-      case 'review': return <ReviewPhase project={activeProject} user={user} onComplete={() => alert('Project Complete!')} />;
+      case 'review': return <ReviewPhase project={activeProject} user={user} onComplete={() => { addNotification('Project Locked', `"${activeProject.title}" has been signed off and locked.`, 'success'); setActiveProjectId(null); loadProjects(); }} />;
       default: return <Dashboard user={user} projects={projects} onSelectProject={handleSelectProject} onCreateProject={handleCreateProject} />;
     }
   };

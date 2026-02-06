@@ -22,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   notificationCount 
 }) => {
   const phases: { id: ProjectPhase; label: string; icon: string }[] = [
+    { id: 'planning', label: '0. Planning', icon: '🗺️' },
     { id: 'research', label: '1. Research', icon: '🔍' },
     { id: 'archive', label: '2. Archive', icon: '📼' },
     { id: 'scripting', label: '3. Scripting', icon: '📝' },
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="w-64 bg-[#111] border-r border-[#222] flex flex-col">
       <div className="p-4 border-b border-[#222]">
-        <img src="/aim-logo.jpeg" alt="AiM - AI Production Studio" className="w-full rounded" />
+        <img src="/aim-logo.png" alt="AiM - AI Production Studio" className="w-full rounded" />
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

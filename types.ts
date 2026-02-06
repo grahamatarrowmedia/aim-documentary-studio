@@ -1,5 +1,5 @@
 
-export type ProjectPhase = 'research' | 'archive' | 'scripting' | 'expert_interview' | 'voice_over' | 'assembly' | 'review' | 'settings' | 'cloud_management';
+export type ProjectPhase = 'planning' | 'research' | 'archive' | 'scripting' | 'expert_interview' | 'voice_over' | 'assembly' | 'review' | 'settings' | 'cloud_management';
 
 export type UserRole = 'producer' | 'editor' | 'researcher' | 'legal' | 'archivist';
 
@@ -306,4 +306,38 @@ export interface ResearchNode {
   x: number;
   y: number;
   engine?: string;
+}
+
+// ---- Planning Phase Types ----
+
+export interface PlanningSeries {
+  id: string;
+  title: string;
+  logline?: string;
+  icon?: string;
+  episode_count?: number;
+}
+
+export interface EpisodePlan {
+  id: string;
+  series_id: string;
+  episode_number: number;
+  title: string;
+  focus?: string;
+  synopsis?: string;
+  status?: 'planning' | 'researching' | 'locked';
+}
+
+export interface PlanningBrief {
+  id: string;
+  content: string;
+  generated_at: string;
+}
+
+export interface PlanningReference {
+  id: string;
+  name: string;
+  type: 'pdf' | 'docx' | 'txt';
+  size: string;
+  upload_date: string;
 }

@@ -150,7 +150,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
   // ACTIONS: Episodes
   // ---------------------------------------------------------------------------
   const handleAddEpisode = async () => {
-    if (!newEpisodeTitle.trim()) return;
+    if (!newEpisodeTitle.trim() || !activeSeriesId) return;
     const currentSeriesEpisodes = episodesList.filter(e => e.series_id === activeSeriesId);
     const nextEpNum = currentSeriesEpisodes.length > 0
       ? Math.max(...currentSeriesEpisodes.map(e => e.episode_number)) + 1
@@ -413,8 +413,25 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
 
       const newQuery: ResearchQuery = { ...queryData, id: saved.id };
       setResearchQueries(prev => [newQuery, ...prev]);
+
+      // Also store the result as a new indexed source for future cross-referencing
+      const sourcePayload = {
+        projectId: project.id,
+        episode_id: activeEpisodeId,
+        assetType: 'research_source',
+        type: 'text',
+        title: `Research: ${researchPrompt.slice(0, 80)}`,
+        status: 'indexed',
+        summary: result.response || '',
+        key_topics: result.key_topics || result.key_facts?.slice(0, 5) || [],
+        key_facts: result.key_facts || [],
+        added_at: new Date().toISOString()
+      };
+      const savedSource = await apiService.createAsset(sourcePayload);
+      setSources(prev => [...prev, { ...sourcePayload, id: savedSource.id } as ResearchSource]);
+
       setResearchPrompt('');
-      onNotify('Research Complete', `Found ${(result.key_facts || []).length} key facts from ${indexedSources.length} sources.`, 'success');
+      onNotify('Research Complete', `Found ${(result.key_facts || []).length} key facts from ${indexedSources.length} sources. Result added as new source.`, 'success');
     } catch (error) {
       console.error("Research Failed", error);
       onNotify('Research Error', 'Failed to complete research query.', 'error');
@@ -510,7 +527,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
                 </button>
               ))}
               {!isAddingEpisode ? (
-                <button onClick={() => setIsAddingEpisode(true)} className="w-full text-left p-2 text-[10px] text-gray-600 hover:text-gray-400">+ Add Episode</button>
+                <button onClick={() => setIsAddingEpisode(true)} disabled={!activeSeriesId} className="w-full text-left p-2 text-[10px] text-gray-600 hover:text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed">{activeSeriesId ? '+ Add Episode' : 'Select a series first'}</button>
               ) : (
                 <div className="p-2 bg-[#1a1a1a] rounded">
                   <input
