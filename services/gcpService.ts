@@ -1,5 +1,5 @@
 
-import { GCSBucket, VertexModelStatus } from '../types';
+import { GCSBucket, VertexModelStatus, CloudStats } from '../types';
 
 /**
  * Service to interact with Google Cloud Platform resources.
@@ -89,6 +89,18 @@ export const gcpService = {
     } catch (error) {
       console.error('Failed to purge cache:', error);
       return false;
+    }
+  },
+
+  /**
+   * Fetches live infrastructure stats (Firestore counts, GCS summary).
+   */
+  async getStats(): Promise<CloudStats | null> {
+    try {
+      return await apiCall<CloudStats>('/cloud/stats');
+    } catch (error) {
+      console.error('Failed to fetch cloud stats:', error);
+      return null;
     }
   }
 };

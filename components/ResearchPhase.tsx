@@ -368,7 +368,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
       `Loading ${indexedSources.length} indexed sources...`,
       `Engine: ${selectedEngine.replace(/_/g, ' ').toUpperCase()}`,
       "Cross-referencing across sources...",
-      "Synthesizing findings with Vertex AI..."
+      "AI research in progress..."
     ];
 
     try {

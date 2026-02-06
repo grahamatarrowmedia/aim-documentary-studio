@@ -127,7 +127,7 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
         addAgentLog(`WRITER_AGENT: Style Match Found: ${styles}`);
     }
 
-    addAgentLog('WRITER_AGENT: Synthesizing Narrative Arc...');
+    addAgentLog('WRITER_AGENT: Building narrative arc...');
     await new Promise(r => setTimeout(r, 1000));
 
     try {

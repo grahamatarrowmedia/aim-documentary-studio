@@ -259,6 +259,17 @@ export interface VertexModelStatus {
   status: 'active' | 'deploying' | 'error';
   latencyMs: number;
   callsPerMin: number;
+  url?: string;
+}
+
+export interface CloudStats {
+  firestore: Record<string, number>;
+  totalDocuments: number;
+  gcsBucketCount: number;
+  primaryBucketSizeGb: number;
+  primaryBucketFiles: number;
+  region: string;
+  project: string;
 }
 
 export interface Notification {
