@@ -47,6 +47,7 @@ export interface ResearchEpisode {
   episode_number: number;
   title: string;
   status: 'planning' | 'researching' | 'locked';
+  focus?: string;
 }
 
 export interface ManualSource {

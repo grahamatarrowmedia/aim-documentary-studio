@@ -54,7 +54,8 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
             (latest.parts || []).forEach((part: any) => {
               (part.scenes || []).forEach((scene: any) => {
                 (scene.beats || []).forEach((beat: any) => {
-                  if (beat.type === 'voice_over') {
+                  const bt = (beat.type || '').toLowerCase();
+                  if (bt === 'voice_over' || bt === 'narration' || bt === 'narrator' || bt === 'vo') {
                     voBeats.push({
                       id: `vo-${beat.id}`,
                       project_id: project.id,
@@ -65,8 +66,9 @@ const VoiceOverPhase: React.FC<VoiceOverPhaseProps> = ({ project, user, onAdvanc
                       text: beat.content || '',
                       duration_seconds: beat.duration_seconds || 15,
                       status: 'pending',
-                      generation_settings: defaultSettings
-                    });
+                      generation_settings: defaultSettings,
+                      track_type: 'audio',
+                    } as any);
                   }
                 });
               });

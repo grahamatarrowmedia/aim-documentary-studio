@@ -3,13 +3,23 @@ import { ElevenLabsSettings, VoiceTalent } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+const DEFAULT_VOICES: VoiceTalent[] = [
+  { id: 'demo-rachel', name: 'Rachel (Narrator)', category: 'premade', provider: 'elevenlabs' },
+  { id: 'demo-drew', name: 'Drew (Documentary)', category: 'premade', provider: 'elevenlabs' },
+  { id: 'demo-clyde', name: 'Clyde (Authoritative)', category: 'premade', provider: 'elevenlabs' },
+  { id: 'demo-domi', name: 'Domi (Conversational)', category: 'premade', provider: 'elevenlabs' },
+  { id: 'demo-bella', name: 'Bella (Warm)', category: 'premade', provider: 'elevenlabs' },
+  { id: 'demo-antoni', name: 'Antoni (Presenter)', category: 'premade', provider: 'elevenlabs' },
+];
+
 export const elevenLabsService = {
 
   /**
    * Fetches the user's voice library via backend proxy (API key stays server-side).
+   * Falls back to premade demo voices if no API key configured.
    */
   async getVoices(userId: string): Promise<VoiceTalent[]> {
-    if (!userId) return [];
+    if (!userId) return DEFAULT_VOICES;
 
     try {
       const response = await fetch(`${API_BASE}/api/elevenlabs/voices`, {
@@ -21,13 +31,12 @@ export const elevenLabsService = {
       if (!response.ok) throw new Error("Failed to fetch voices");
 
       const data = await response.json();
-      return data.voices || [];
+      const voices = data.voices || [];
+      // If backend returned no voices (no API key), use defaults
+      return voices.length > 0 ? voices : DEFAULT_VOICES;
     } catch (error) {
       console.error("ElevenLabs Fetch Error", error);
-      return [
-        { id: 'eleven-1', name: 'Marcus (Narrator Deep)', category: 'cloned', provider: 'elevenlabs' },
-        { id: 'eleven-2', name: 'Sarah (Journalist)', category: 'generated', provider: 'elevenlabs' },
-      ];
+      return DEFAULT_VOICES;
     }
   },
 

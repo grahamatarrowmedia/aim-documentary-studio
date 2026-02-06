@@ -115,15 +115,27 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate }) => 
                     <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer" className="text-gray-500 hover:text-white underline">Get Key</a>
                 </label>
                 <div className="flex gap-2">
-                    <input 
-                        type="password" 
+                    <input
+                        type="password"
                         name="elevenLabsApiKey"
                         value={formData.elevenLabsApiKey || ''}
                         onChange={handleChange}
                         placeholder="xi-api-key-..."
                         className="flex-1 bg-[#0a0a0a] border border-[#333] rounded p-3 focus:outline-none focus:border-blue-600 text-sm font-mono"
                     />
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || !formData.elevenLabsApiKey}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-[#333] disabled:text-gray-600 text-white font-bold px-4 rounded text-[10px] uppercase tracking-widest transition"
+                    >
+                      {saving ? '...' : 'Save Key'}
+                    </button>
                 </div>
+                {saveStatus === 'saved' && formData.elevenLabsApiKey && (
+                  <p className="text-green-500 text-[10px] mt-2 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Key saved. Voice Over phase will use this key.
+                  </p>
+                )}
                 <p className="text-[10px] text-gray-500 mt-2">Required for custom Voice Cloning workflow.</p>
             </div>
           </section>
@@ -133,27 +145,31 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate }) => 
             <p className="text-xs text-gray-400 mb-6 leading-relaxed">
               Define the "House Style" for AiM. These instructions are injected into every AI agent call, ensuring consistency across research, scripts, and visuals.
             </p>
-            <textarea 
+            <textarea
               name="customInstructions"
               value={formData.customInstructions}
               onChange={handleChange}
               placeholder="e.g. Always write in the style of David Attenborough. Focus on scientific accuracy. Use short, punchy sentences."
               className="flex-1 w-full bg-[#0a0a0a] border border-[#333] rounded p-4 focus:outline-none focus:border-red-600 text-sm font-mono leading-relaxed"
             />
+          </section>
+
+          {/* Global Save */}
+          <div className="sticky bottom-0 bg-[#0a0a0a]/90 backdrop-blur-sm border-t border-[#222] -mx-0 p-4 rounded-b-2xl">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="mt-8 bg-white text-black font-bold py-3 rounded text-sm hover:bg-gray-200 transition disabled:opacity-50"
+              className="w-full bg-white text-black font-bold py-3 rounded text-sm hover:bg-gray-200 transition disabled:opacity-50"
             >
-              {saving ? 'SAVING...' : 'COMMIT CHANGES'}
+              {saving ? 'SAVING...' : 'SAVE ALL SETTINGS'}
             </button>
             {saveStatus === 'saved' && (
-              <p className="text-green-500 text-xs mt-2 text-center">Profile saved successfully.</p>
+              <p className="text-green-500 text-xs mt-2 text-center">All settings saved successfully.</p>
             )}
             {saveStatus === 'error' && (
               <p className="text-red-500 text-xs mt-2 text-center">Failed to save. Please try again.</p>
             )}
-          </section>
+          </div>
         </div>
       </div>
     </div>

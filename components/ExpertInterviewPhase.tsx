@@ -60,12 +60,13 @@ const ExpertInterviewPhase: React.FC<ExpertInterviewPhaseProps> = ({ project, on
     mockScript.parts.forEach(part => {
       part.scenes.forEach(scene => {
         scene.beats.forEach(beat => {
-          if (beat.type === 'expert') {
+          const bt = beat.type?.toLowerCase();
+          if (bt === 'expert' || bt === 'interview' || bt === 'expert_interview' || bt === 'soundbite') {
             initialPlans.push({
               id: `plan-${beat.id}`,
               beat_id: beat.id,
               scene_context: `${part.title} - ${scene.title}`,
-              topic: beat.topic || 'General Commentary',
+              topic: beat.topic || beat.speaker || 'General Commentary',
               ideal_soundbite: '',
               questions: [],
               candidates: [],

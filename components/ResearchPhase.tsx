@@ -65,6 +65,10 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
 
   const [researchQueries, setResearchQueries] = useState<ResearchQuery[]>([]);
 
+  // Planning brainstorm context
+  const [brainstormText, setBrainstormText] = useState<string>('');
+  const [showBrainstormPanel, setShowBrainstormPanel] = useState(false);
+
   // ---------------------------------------------------------------------------
   // LOAD DATA FROM BACKEND
   // ---------------------------------------------------------------------------
@@ -79,12 +83,15 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
         ]);
         setSeriesList(series.map((s: any) => ({ id: s.id, title: s.title, icon: s.icon || '📁' })));
         setEpisodesList(episodes.map((e: any) => ({
-          id: e.id, series_id: e.series_id, episode_number: e.episode_number, title: e.title, status: e.status || 'planning'
+          id: e.id, series_id: e.series_id, episode_number: e.episode_number, title: e.title, status: e.status || 'planning', focus: e.focus
         })));
         // Research sources stored as assets with assetType='research_source'
         const researchSources = assets.filter((a: any) => a.assetType === 'research_source');
         setSources(researchSources);
-        setResearchQueries(research);
+        // Separate brainstorm from regular research queries
+        const brainstorm = research.find((r: any) => r.phase === 'planning');
+        if (brainstorm) setBrainstormText(brainstorm.answer || brainstorm.response || '');
+        setResearchQueries(research.filter((r: any) => r.phase !== 'planning'));
         // Auto-select first series if available
         if (series.length > 0) {
           setActiveSeriesId(series[0].id);
@@ -469,13 +476,34 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
           <h2 className="text-3xl font-black uppercase italic tracking-tighter">PHASE 01: Intelligent Discovery</h2>
           <p className="text-gray-500">Deep Research & Knowledge Synthesis | Project: <span className="text-white font-bold">{project.title}</span></p>
         </div>
-        <button
-          onClick={onAdvance}
-          className="bg-white text-black font-bold px-6 py-2 rounded flex items-center gap-2 hover:bg-gray-200 transition"
-        >
-          NEXT PHASE <span className="text-xl">→</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {brainstormText && (
+            <button
+              onClick={() => setShowBrainstormPanel(!showBrainstormPanel)}
+              className={`text-[10px] font-bold uppercase px-3 py-2 rounded border transition ${showBrainstormPanel ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'bg-[#222] border-[#333] text-gray-400 hover:text-white'}`}
+            >
+              {showBrainstormPanel ? 'Hide' : 'Show'} Planning Brief
+            </button>
+          )}
+          <button
+            onClick={onAdvance}
+            className="bg-white text-black font-bold px-6 py-2 rounded flex items-center gap-2 hover:bg-gray-200 transition"
+          >
+            NEXT PHASE <span className="text-xl">→</span>
+          </button>
+        </div>
       </div>
+
+      {/* Planning Brief Panel */}
+      {showBrainstormPanel && brainstormText && (
+        <div className="mb-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Planning Brief</span>
+            <span className="text-[9px] text-gray-500">Use this to guide your research</span>
+          </div>
+          <div className="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">{brainstormText.slice(0, 3000)}</div>
+        </div>
+      )}
 
       <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
 
@@ -528,8 +556,11 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
                     onClick={() => setActiveEpisodeId(ep.id)}
                     className={`flex-1 text-left p-2 rounded text-xs font-medium transition ${activeEpisodeId === ep.id ? 'bg-[#1a1a1a] text-white border-l-2 border-red-600' : 'text-gray-500 hover:text-gray-300'}`}
                   >
-                    <span className="font-mono opacity-50 mr-1">EP{ep.episode_number.toString().padStart(2, '0')}</span>
-                    <span className="truncate">{ep.title}</span>
+                    <div className="flex items-center">
+                      <span className="font-mono opacity-50 mr-1">EP{ep.episode_number.toString().padStart(2, '0')}</span>
+                      <span className="truncate">{ep.title}</span>
+                    </div>
+                    {ep.focus && <p className="text-[9px] text-gray-600 mt-0.5 truncate">{ep.focus}</p>}
                   </button>
                   <button
                     onClick={() => { apiService.deleteEpisode(ep.id).catch(console.error); setEpisodesList(prev => prev.filter(x => x.id !== ep.id)); if (activeEpisodeId === ep.id) setActiveEpisodeId(''); }}
@@ -661,7 +692,7 @@ const ResearchPhase: React.FC<ResearchPhaseProps> = ({ project, user, onAdvance,
               <textarea
                 value={researchPrompt}
                 onChange={(e) => setResearchPrompt(e.target.value)}
-                placeholder={activeEpisodeId ? `Ask a question about "${activeEpisode?.title}"...` : 'Select an episode to start researching'}
+                placeholder={activeEpisodeId ? `Ask a question about "${activeEpisode?.title}"${activeEpisode?.focus ? ` — Focus: ${activeEpisode.focus}` : ''}...` : 'Select an episode to start researching'}
                 className="w-full bg-[#1a1a1a] border border-[#333] text-white placeholder-gray-500 text-sm p-4 pr-14 rounded-xl outline-none resize-none focus:border-[#1a73e8] transition"
                 rows={2}
                 disabled={!activeEpisodeId || isResearching}

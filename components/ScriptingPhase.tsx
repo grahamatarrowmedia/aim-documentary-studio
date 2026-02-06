@@ -144,15 +144,16 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
         id: `part-${idx}`,
         part_number: idx + 1,
         title: p.title,
-        scenes: p.scenes.map((s: any, sIdx: number) => ({
+        scenes: (p.scenes || []).map((s: any, sIdx: number) => ({
           id: `scene-${idx}-${sIdx}`,
           scene_number: sIdx + 1,
           title: s.title,
-          beats: s.beats.map((b: any, bIdx: number) => ({
+          beats: (s.beats || []).map((b: any, bIdx: number) => ({
             id: `beat-${idx}-${sIdx}-${bIdx}`,
-            type: b.type as any,
+            type: normalizeBeatType(b.type) as any,
             content: b.content,
             speaker: b.speaker,
+            topic: b.speaker || b.topic || '',
             duration_seconds: b.duration_seconds || 15
           }))
         }))
@@ -239,6 +240,18 @@ const ScriptingPhase: React.FC<ScriptingPhaseProps> = ({ project, onAdvance }) =
 
   const handleFormat = (command: string, value?: string) => {
     document.execCommand(command, false, value);
+  };
+
+  // Normalize AI-generated beat types to frontend-expected types
+  const normalizeBeatType = (type: string): string => {
+    switch (type?.toLowerCase()) {
+      case 'narration': case 'narrator': case 'vo': return 'voice_over';
+      case 'interview': case 'expert_interview': case 'soundbite': return 'expert';
+      case 'b-roll': case 'b_roll': case 'broll': case 'archival': case 'footage': return 'archive';
+      case 'transition': case 'title_card': case 'graphic': case 'visual': return 'ai_visual';
+      case 'voice_over': case 'expert': case 'archive': case 'ai_visual': return type;
+      default: return type || 'voice_over';
+    }
   };
 
   const getBeatColor = (type: string) => {

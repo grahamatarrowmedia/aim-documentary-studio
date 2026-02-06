@@ -8,15 +8,128 @@ interface AssemblyPhaseProps {
   onAdvance: () => void;
 }
 
+const beatToTrackType = (beatType: string): TimelineItem['track_type'] | null => {
+  switch (beatType?.toLowerCase()) {
+    case 'voice_over': case 'narration': case 'narrator': case 'vo': return 'audio';
+    case 'expert': case 'interview': case 'expert_interview': case 'soundbite': return 'expert';
+    case 'archive': case 'b-roll': case 'b_roll': case 'broll': case 'archival': case 'footage': return 'video';
+    case 'ai_visual': case 'transition': case 'title_card': case 'graphic': case 'visual': return 'graphics';
+    default: return 'video';
+  }
+};
+
+const beatToSourceType = (beatType: string): TimelineItem['source_type'] => {
+  switch (beatType?.toLowerCase()) {
+    case 'voice_over': case 'narration': case 'narrator': case 'vo': return 'voice_over';
+    case 'expert': case 'interview': case 'expert_interview': case 'soundbite': return 'expert_interview';
+    case 'archive': case 'b-roll': case 'b_roll': case 'broll': case 'archival': case 'footage': return 'archive_clip';
+    case 'ai_visual': case 'transition': case 'title_card': case 'graphic': case 'visual': return 'ai_generated';
+    default: return 'archive_clip';
+  }
+};
+
+const trackColor = (trackType: string): string => {
+  switch (trackType) {
+    case 'audio': return 'bg-blue-600/80';
+    case 'expert': return 'bg-green-600/80';
+    case 'video': return 'bg-yellow-600/80';
+    case 'graphics': return 'bg-purple-600/80';
+    case 'music': return 'bg-pink-600/80';
+    case 'sfx': return 'bg-orange-600/80';
+    default: return 'bg-gray-600/80';
+  }
+};
+
+const stripHtml = (html: string) => html.replace(/<[^>]*>?/gm, '');
+
 const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => {
   const [items, setItems] = useState<TimelineItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load timeline items from backend shots
+  // Load timeline items — auto-populate from script if empty
   useEffect(() => {
-    apiService.getShotsByProject(project.id).then((shots: any[]) => {
-      const timelineShots = shots.filter((s: any) => s.track_type);
-      setItems(timelineShots);
-    }).catch(err => console.error('Failed to load timeline:', err));
+    const loadTimeline = async () => {
+      setIsLoading(true);
+      try {
+        const shots = await apiService.getShotsByProject(project.id);
+        const timelineShots = shots.filter((s: any) => s.track_type);
+
+        if (timelineShots.length > 0) {
+          setItems(timelineShots);
+          setIsLoading(false);
+          return;
+        }
+
+        // No timeline items yet — auto-populate from script beats
+        const scripts = await apiService.getScriptsByProject(project.id);
+        if (scripts.length === 0) { setIsLoading(false); return; }
+
+        const latest = scripts.sort((a: any, b: any) => (b.version || 0) - (a.version || 0))[0];
+        const newItems: TimelineItem[] = [];
+        let runningTime = 0;
+
+        (latest.parts || []).forEach((part: any) => {
+          (part.scenes || []).forEach((scene: any) => {
+            (scene.beats || []).forEach((beat: any) => {
+              const duration = beat.duration_seconds || 15;
+              const trackType = beatToTrackType(beat.type);
+              if (!trackType) return;
+
+              const rawLabel = beat.speaker
+                ? `${beat.speaker}: ${stripHtml(beat.content || '').slice(0, 40)}`
+                : stripHtml(beat.content || '').slice(0, 50) || `${beat.type} beat`;
+
+              newItems.push({
+                id: `tl-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+                project_id: project.id,
+                track_type: trackType,
+                track_index: 0,
+                start_time: runningTime,
+                end_time: runningTime + duration,
+                duration,
+                source_type: beatToSourceType(beat.type),
+                source_id: beat.id,
+                label: rawLabel,
+                color: trackColor(trackType),
+              });
+              runningTime += duration;
+            });
+          });
+        });
+
+        // Also pull in voice-over shots that may have been generated
+        const voShots = shots.filter((s: any) => s.source_type === 'voice_over' && !s.track_type);
+        let voTime = runningTime;
+        voShots.forEach((vo: any) => {
+          const dur = vo.duration_seconds || 15;
+          newItems.push({
+            id: `tl-vo-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            project_id: project.id,
+            track_type: 'audio',
+            track_index: 0,
+            start_time: voTime,
+            end_time: voTime + dur,
+            duration: dur,
+            source_type: 'voice_over',
+            source_id: vo.id,
+            label: vo.text ? stripHtml(vo.text).slice(0, 50) : 'Voice Over',
+            color: trackColor('audio'),
+          });
+          voTime += dur;
+        });
+
+        if (newItems.length > 0) {
+          const saved = await Promise.all(newItems.map(item =>
+            apiService.createShot({ ...item, projectId: project.id })
+          ));
+          setItems(saved.map((s: any, i: number) => ({ ...newItems[i], id: s.id })));
+        }
+      } catch (err) {
+        console.error('Failed to load timeline:', err);
+      }
+      setIsLoading(false);
+    };
+    loadTimeline();
   }, [project.id]);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -34,7 +147,10 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
   ];
 
   const pixelsPerSecond = 10;
-  const maxDuration = 300; // 5 mins for mock
+  const computedMax = items.length > 0
+    ? Math.max(...items.map(i => (i.start_time || 0) + (i.duration || 0))) + 30
+    : 300;
+  const maxDuration = Math.max(computedMax, 60);
 
   const togglePlay = () => {
       if (isPlaying) {
@@ -148,6 +264,14 @@ const AssemblyPhase: React.FC<AssemblyPhaseProps> = ({ project, onAdvance }) => 
 
         {/* Tracks Area */}
         <div className="flex-1 overflow-auto custom-scrollbar relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 bg-[#111]/80">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-xs text-gray-500 font-mono">Loading timeline from script...</p>
+              </div>
+            </div>
+          )}
           <div className="min-w-[2000px]">
             {tracks.map(track => (
               <div key={track.id} className="h-16 border-b border-[#222] flex relative group">
